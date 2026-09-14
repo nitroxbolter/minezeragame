@@ -1,0 +1,14 @@
+# Resource packs are third-party content with their own licenses; never commit them.
+resourcepack.zip
+*.zip
+*.tar.gz
+
+# Runtime state and session tokens must stay on the server.
+storage/sessions/*
+!storage/sessions/.gitkeep
+storage/world/*
+!storage/world/.gitkeep
+# OS / tooling noise
+.DS_Store
+node_modules/
+*.log
