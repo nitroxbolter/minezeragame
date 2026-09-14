@@ -60,11 +60,9 @@ CREATE TABLE `contas` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Despejando dados para a tabela `contas`
+-- Nenhuma conta inicial e incluida neste dump publico.
+-- Crie uma conta pela aplicacao e promova-a a admin quando necessario.
 --
-
-INSERT INTO `contas` (`id`, `login`, `senha_hash`, `tipo`, `criado_em`, `ultimo_login`) VALUES
-(1, 'eduardo', '$2y$10$NSf6e/Nzuc//SDRS/fg7xe2qpi0ooJ8SWeJyU.3G3RWPtkuZ7rv8.', 3, '2026-09-13 19:19:59', NULL);
 
 -- --------------------------------------------------------
 
@@ -101,11 +99,8 @@ CREATE TABLE `personagens` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Despejando dados para a tabela `personagens`
+-- Nenhum personagem inicial e incluido neste dump publico.
 --
-
-INSERT INTO `personagens` (`id`, `conta_id`, `nome`, `classe_id`, `nivel`, `exp`, `hp`, `hunger`, `pos_x`, `pos_y`, `pos_z`, `yaw`, `pitch`, `inventory_json`, `hotbar`, `skill_lenhador`, `skill_cooking`, `skill_mining`, `skill_crafting`, `skill_farming`, `forca`, `kills`, `dias_jogados`, `criado_em`, `atualizado_em`) VALUES
-(1, 1, 'eduardo', 0, 2, 0, 22, 20, 16.32, 71, 31.11, 0, 0, NULL, 0, 1, 1, 1, 1, 1, 15, 10, 1, '2026-09-13 19:19:59', '2026-09-13 22:56:00');
 
 --
 -- Índices para tabelas despejadas
@@ -142,13 +137,13 @@ ALTER TABLE `personagens`
 -- AUTO_INCREMENT de tabela `contas`
 --
 ALTER TABLE `contas`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 --
 -- AUTO_INCREMENT de tabela `personagens`
 --
 ALTER TABLE `personagens`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 --
 -- Restrições para tabelas despejadas
