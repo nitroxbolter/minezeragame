@@ -1,15 +1,25 @@
-# Voxelcraft
+# Minezera / FP Craft
 
-A Minecraft-style voxel survival game that runs in the browser from **one HTML file**. No build step, no bundler, no server required: open `index.html` and play.
+Um jogo voxel survival estilo Minecraft que roda no navegador. O motor do jogo continua concentrado em `index.html`, mas o projeto agora tem um servidor Node.js com MySQL para login, personagem, painel, sincronizacao de atributos e save do mundo no servidor.
 
-![Voxelcraft forest with procedural textures](docs/screenshot.png)
+![FP Craft forest with procedural textures](docs/screenshot.png)
 
 Built with [Three.js](https://threejs.org/) (r128) and [JSZip](https://stuk.github.io/jszip/), both loaded from cdnjs. Everything else, including the noise functions, meshing, lighting, physics, textures and UI, is written from scratch inside `index.html`.
 
-## Run it
+## Rodar
 
-- **Simplest:** double-click `index.html`. Chrome, Edge and Firefox all work.
-- **With a resource pack that loads automatically:** serve the folder over HTTP and drop a pack next to the page as `resourcepack.zip`:
+- **Modo completo com conta:** use Node.js/MySQL, importe `database/minezera.sql`, instale dependencias e rode o servidor:
+
+  ```bash
+  npm install
+  npm start
+  # depois abra http://127.0.0.1:8765/
+  ```
+
+  Configure `DB_HOST`, `DB_NAME`, `DB_USER` e `DB_PASS` na VPS. Veja [`documentacao/SERVIDOR-LINUX.md`](documentacao/SERVIDOR-LINUX.md).
+- **Windows/XAMPP:** depois de importar `database/minezera.sql` no phpMyAdmin, execute `iniciar-servidor.bat`. Ele sobe o servidor Node e abre o navegador.
+- **PHP legado:** os arquivos PHP antigos ainda estao no repositorio, mas o caminho recomendado agora e o Node.
+- **Resource pack automatico:** servindo por HTTP, coloque um pack na raiz como `resourcepack.zip`:
 
   ```bash
   python3 -m http.server 8765
@@ -37,7 +47,8 @@ Built with [Three.js](https://threejs.org/) (r128) and [JSZip](https://stuk.gith
 - Full inventory with 2x2 crafting, crafting table (3x3, 60+ recipes), furnace (fuel, smelting, cooking), chests, doors, ladders, torches, buckets, hoes and farming with crop growth stages.
 - Redstone basics: wire with signal falloff, redstone torches, levers, redstone lamps, doors, TNT.
 - Passive mobs (pig, cow, sheep, chicken; sheep can be sheared) and hostile mobs (zombie, skeleton, creeper) that spawn in darkness, chase, shoot or explode, and burn in daylight. Melee and bow combat with knockback.
-- Autosave to localStorage (deflated), plus JSON export and import. Worlds are reproducible from their seed.
+- Multiplayer presence via Node WebSocket: logged-in players can see each other moving in the same world, with connect/disconnect logs in the server console.
+- Autosave do personagem via Node/MySQL quando aberto por `/game`; o mundo compartilhado e salvo em `storage/world/world.json`, com export/import JSON manual. Worlds are reproducible from their seed.
 
 **Resource packs**
 - Loads standard Minecraft Java resource packs (`.zip`). Block and item textures are matched by vanilla file name; 16x, 32x and 64x packs are handled; animated textures use their first frame; OptiFine/MCPatcher assets and `.mcmeta` files are ignored; legacy (1.12) names are aliased.
@@ -82,12 +93,16 @@ Right-click crafting tables, furnaces, chests, doors and levers to use them. Fli
 18. HUD, persistence, menus
 19. Bootstrap and main loop
 
-Unfinished or simplified features are marked in the code with `// STUB:`; the full list is at the bottom of the script. Highlights of what is not there yet: the Nether and the End, villages and mineshafts, villager trading, enchanting and brewing, redstone repeaters and pistons, mob textures from resource packs, audio.
+Unfinished or simplified features are marked in the code with `// STUB:`; the full list is at the bottom of the script. Highlights of what is not there yet: the Nether and the End, villages and mineshafts, villager trading, enchanting and brewing, redstone repeaters and pistons, audio.
+
+## Documentacao
+
+Notas em Portugues sobre arquitetura, servidor Node, conexao via pagina web, banco, mobs, barras de HP/fome/EXP e limites atuais ficam em [`documentacao/`](documentacao/README.md).
 
 ## Third-party content
 
 - Resource packs are **not** included. Most packs, including [New Default+](https://modrinth.com/resourcepack/new-default-plus), carry their own licenses; download them yourself and place the zip next to `index.html` as `resourcepack.zip` (it is git-ignored).
-- Voxelcraft is an independent project. "Minecraft" is a trademark of Mojang Studios / Microsoft; this project is not affiliated with or endorsed by them.
+- FP Craft is an independent project. "Minecraft" is a trademark of Mojang Studios / Microsoft; this project is not affiliated with or endorsed by them.
 
 ## License
 
