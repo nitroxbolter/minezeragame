@@ -5489,7 +5489,12 @@ const PlayerSkins = {
     try {
       const accountKey = this.storageKey();
       const serverSkin = window.MINEZERA_PLAYER && window.MINEZERA_PLAYER.skin;
-      const saved = (this.list.some(s => s.id === serverSkin) ? serverSkin : null) || localStorage.getItem(accountKey) || localStorage.getItem(this.KEY);
+      const localSkin = localStorage.getItem(accountKey) || localStorage.getItem(this.KEY);
+      const validServerSkin = this.list.some(s => s.id === serverSkin) ? serverSkin : null;
+      const validLocalSkin = this.list.some(s => s.id === localSkin) ? localSkin : null;
+      // Existing accounts kept their selection only in localStorage. Prefer it
+      // over the migration's default Steve once, then AccountSync stores it.
+      const saved = validServerSkin && validServerSkin !== 'security' ? validServerSkin : validLocalSkin || validServerSkin;
       if (saved && !localStorage.getItem(accountKey)) localStorage.setItem(accountKey, saved);
       if (this.list.some(s => s.id === saved)) { this.selected = saved; this.saved = true; }
     } catch (e) { /* localStorage unavailable */ }
