@@ -421,6 +421,7 @@ const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); retu
 const floor = Math.floor;
 const dist2 = (ax, ay, az, bx, by, bz) => (ax-bx)*(ax-bx) + (ay-by)*(ay-by) + (az-bz)*(az-bz);
 function isVillageProtected(x, z) {
+  if (isAdminPlayer()) return false;
   const dx = Number(x) - VILLAGE_CENTER.x, dz = Number(z) - VILLAGE_CENTER.z;
   return dx * dx + dz * dz <= VILLAGE_PROTECTION_RADIUS * VILLAGE_PROTECTION_RADIUS;
 }
