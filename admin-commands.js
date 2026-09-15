@@ -1,6 +1,20 @@
 'use strict';
 
-const MOB_TYPES = Object.freeze(['pig', 'cow', 'sheep', 'chicken', 'zombie', 'skeleton', 'pillager', 'creeper']);
+const MOB_TYPES = Object.freeze([
+  'pig', 'cow', 'sheep', 'chicken', 'zombie', 'zombie_villager', 'husk', 'drowned',
+  'skeleton', 'pillager', 'creeper', 'witch', 'enderman', 'blaze', 'ghast', 'spider',
+  'cave_spider', 'slime', 'magma_cube', 'silverfish', 'guardian', 'phantom', 'polar_bear',
+  'rabbit', 'bat', 'iron_golem', 'wandering_trader', 'goat', 'fox',
+  'villager', 'wolf', 'cat', 'horse', 'bee'
+]);
+const MOB_ALIASES = Object.freeze({
+  porco: 'pig', vaca: 'cow', ovelha: 'sheep', galinha: 'chicken', zumbi: 'zombie',
+  aldeao_zumbi: 'zombie_villager', aldeão_zumbi: 'zombie_villager', afogado: 'drowned',
+  esqueleto: 'skeleton', aranha: 'spider', aranha_de_caverna: 'cave_spider', bruxa: 'witch',
+  morcego: 'bat', coelho: 'rabbit', cabra: 'goat', raposa: 'fox', aldeao: 'villager',
+  aldeão: 'villager', lobo: 'wolf', gato: 'cat', cavalo: 'horse', abelha: 'bee',
+  guardiao: 'guardian', guardião: 'guardian', urso_polar: 'polar_bear', golem: 'iron_golem'
+});
 const TIME_VALUES = Object.freeze({ day: 1000, noon: 6000, night: 13000, midnight: 18000 });
 
 const COMMANDS = Object.freeze({
@@ -67,7 +81,8 @@ function parseAdminCommand(input) {
   }
   if (name === 'summon') {
     if (![1, 4].includes(args.length)) return { ok: false, error: command.usage };
-    const entity = String(args[0]).toLowerCase();
+    const typedEntity = String(args[0]).toLowerCase();
+    const entity = MOB_ALIASES[typedEntity] || typedEntity;
     if (!MOB_TYPES.includes(entity)) return { ok: false, error: `Mob invalido. Use: ${MOB_TYPES.join(', ')}.` };
     if (args.length === 1) return { ok: true, command: name, entity, coordinates: null };
     const coordinates = args.slice(1).map(numberArg);
