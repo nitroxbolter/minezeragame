@@ -5833,6 +5833,9 @@ const PlayerView = {
         if (model) {
           // The official handheld pose is almost vertical, rotated in depth
           // and anchored against the right edge of the first-person view.
+          // Mirror the sprite so the handle stays outside and the blade leans
+          // inward toward the centre of the screen, as a right-hand item.
+          model.scale.x = -1;
           model.rotation.set(-0.10, -0.45, -0.20);
           return model;
         }
