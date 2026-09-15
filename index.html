@@ -5322,7 +5322,7 @@ const Save = {
     } catch (e) { HUD.message('Load failed: ' + e.message); return null; }
   },
   apply(data) {
-    if (!data || data.version !== WORLD_GENERATION_VERSION || data.seed !== TEST_WORLD_SEED_PREFIX) { HUD.message('Mapa anterior descartado: novo mapa de ilha gerado.'); Game.start(TEST_WORLD_SEED_PREFIX, null); return true; }
+    if (!data || data.version !== WORLD_GENERATION_VERSION || data.seed !== TEST_WORLD_SEED_PREFIX) { Game.start(TEST_WORLD_SEED_PREFIX, null); return true; }
     Game.start(String(data.seed), data);
     return true;
   },
@@ -5498,7 +5498,7 @@ const Menus = {
         const blob = await r.blob();
         if (blob.size < 1024) return;
         const result = await ResourcePack.load(new File([blob], 'Minecraft 26.2.zip'));
-        HUD.message(`Faithful 32x: ${result.count}/${result.total} blocos e itens, ${result.entities} entidades`);
+        console.info(`Pacote 26.2 carregado: ${result.count}/${result.total} blocos e itens, ${result.entities} entidades`);
         return result;
       } catch (e) { console.warn('Default resource pack failed:', e); }
     };
@@ -5725,12 +5725,11 @@ const Multiplayer = {
     const base = (window.MINEZERA_BASE_PATH || '').replace(/\/+$/, '');
     const ws = new WebSocket(`${proto}//${location.host}${base}/multiplayer`);
     this.ws = ws;
-    ws.addEventListener('open', () => { this.reconnectDelay = 2; HUD.message('Multiplayer conectado'); this.sendState(); });
+    ws.addEventListener('open', () => { this.reconnectDelay = 2; this.sendState(); });
     ws.addEventListener('message', (event) => this.onMessage(event));
     ws.addEventListener('close', () => {
       this.ws = null;
       this.id = null;
-      HUD.message('Multiplayer desconectado');
     });
     ws.addEventListener('error', () => {
       try { ws.close(); } catch (e) { /* ignore */ }
@@ -5744,12 +5743,11 @@ const Multiplayer = {
       for (const p of msg.peers || []) this.upsertPeer(p.id, p.nome, p.state);
     } else if (msg.type === 'player_joined') {
       this.upsertPeer(msg.id, msg.nome, msg.state);
-      HUD.message(`${msg.nome} entrou no mundo`);
+      HUD.message(`${msg.nome} se conectou`);
     } else if (msg.type === 'player_state') {
       this.upsertPeer(msg.id, msg.nome, msg.state);
     } else if (msg.type === 'player_left') {
       this.removePeer(msg.id);
-      HUD.message(`${msg.nome} saiu do mundo`);
     } else if (msg.type === 'chat') {
       Chat.receive(msg);
     } else if (msg.type === 'admin_command') {
@@ -6060,7 +6058,6 @@ const Game = {
     $('start').classList.add('hidden'); $('death').classList.add('hidden'); $('pause').classList.add('hidden');
     $('loading').classList.remove('hidden'); $('loadtext').textContent = 'Generating world…';
     this.running = true; this.paused = false; this.ready = false; this.autosave = 0;
-    HUD.message('Seed: ' + this.seed + ' · Press E for inventory, Esc for menu');
   },
   stop() {
     this.running = false; this.ready = false; Chat.close(); Input.unlock(); Screens.close();
@@ -6130,7 +6127,7 @@ const Game = {
           this.ready = true; $('loading').classList.add('hidden');
           if (this.freshSpawn) this.settleSpawn(); else if (Physics.intersects(player)) player.y = world.getHeight(floor(player.x), floor(player.z)) + 1;
           this.spawnVillageVillagers();
-          Input.lock(); HUD.message('Click to capture the mouse if it is not captured.');
+          Input.lock();
         }
       } else if (!this.paused) {
         Player.update(dt);
