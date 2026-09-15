@@ -17,7 +17,7 @@ const SESSION_COOKIE = 'minezera_sid';
 const SESSION_TTL_MS = Number.parseInt(process.env.SESSION_TTL_HOURS || '168', 10) * 60 * 60 * 1000;
 const PUBLIC_BASE_PATH = normalizeBasePath(process.env.PUBLIC_BASE_PATH || '');
 const DEFAULT_SPAWN = { x: 16.32, y: 71, z: 31.11 };
-const WORLD_PAYLOAD_VERSION = 2;
+const WORLD_PAYLOAD_VERSION = 3;
 
 const DB_CONFIG = {
   host: process.env.DB_HOST || '127.0.0.1',
