@@ -17,6 +17,7 @@ const SESSION_COOKIE = 'minezera_sid';
 const SESSION_TTL_MS = Number.parseInt(process.env.SESSION_TTL_HOURS || '168', 10) * 60 * 60 * 1000;
 const PUBLIC_BASE_PATH = normalizeBasePath(process.env.PUBLIC_BASE_PATH || '');
 const DEFAULT_SPAWN = { x: 16.32, y: 71, z: 31.11 };
+const WORLD_PAYLOAD_VERSION = 2;
 
 const DB_CONFIG = {
   host: process.env.DB_HOST || '127.0.0.1',
@@ -207,6 +208,16 @@ async function migrateDatabase() {
     }
   }
   await query('UPDATE personagens SET spawn_x = COALESCE(spawn_x, pos_x), spawn_y = COALESCE(spawn_y, pos_y), spawn_z = COALESCE(spawn_z, pos_z) WHERE spawn_x IS NULL OR spawn_y IS NULL OR spawn_z IS NULL');
+  await query(`CREATE TABLE IF NOT EXISTS minezera_meta (
+    meta_key VARCHAR(80) NOT NULL PRIMARY KEY,
+    meta_value VARCHAR(255) NOT NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+  const villageReset = await query('SELECT meta_value FROM minezera_meta WHERE meta_key = ?', ['village-spawn-v2']);
+  if (!villageReset.length) {
+    const result = await query('UPDATE personagens SET pos_x = NULL, pos_y = NULL, pos_z = NULL, spawn_x = NULL, spawn_y = NULL, spawn_z = NULL');
+    await query('INSERT INTO minezera_meta (meta_key, meta_value) VALUES (?, ?)', ['village-spawn-v2', new Date().toISOString()]);
+    console.log(`[db] posições resetadas para a vila central: ${result.affectedRows} personagens`);
+  }
 }
 
 async function currentUser(req) {
@@ -1017,7 +1028,7 @@ async function handleMundoApi(req, res) {
   }
 
   const payload = await readJson(req, 100 * 1024 * 1024);
-  if (!payload || payload.version !== 1) return sendJson(res, { ok: false, erro: 'mundo_invalido' }, 400);
+  if (!payload || payload.version !== WORLD_PAYLOAD_VERSION) return sendJson(res, { ok: false, erro: 'mundo_invalido' }, 400);
   await fs.promises.writeFile(worldPath, JSON.stringify({ ok: true, world: payload }), 'utf8');
   sendJson(res, { ok: true });
 }

@@ -355,6 +355,7 @@ const TEST_WORLD_SIZE = 1000;
 const TEST_WORLD_HALF = TEST_WORLD_SIZE / 2;
 const TEST_WORLD_SEED_PREFIX = 'minezera-ilha-biomas-v2';
 const WORLD_GENERATION_VERSION = 2;
+const VILLAGE_CENTER = Object.freeze({ x: 0, z: 40 });
 const TICK_RATE = 20;          // simulation ticks per second (like vanilla)
 const TICK_DT = 1 / TICK_RATE;
 const DAY_LENGTH = 24000;      // ticks per day (20 real minutes)
@@ -1914,6 +1915,7 @@ const Terrain = {
         else if (p < bio.cactusP + bio.deadBushP) bl[bidx(x, h + 1, z)] = B.dead_bush;
       }
     }
+    this.placeVillage(c);
     // Structures
     const sr = this.chunkRand(c.cx, c.cz, 'struct');
     if (sr.chance(0.04)) this.placeDungeon(c, sr);
@@ -1966,6 +1968,43 @@ const Terrain = {
       world.setBlockGen(x, y + height, z, leaf, 0, onlyAir);
     }
   },
+  placeVillage(c) {
+    if (c.cx !== (VILLAGE_CENTER.x >> 4) || c.cz !== (VILLAGE_CENTER.z >> 4)) return;
+    const cx = VILLAGE_CENTER.x, cz = VILLAGE_CENTER.z, baseY = this.sample(cx, cz).h;
+    const set = (x, y, z, id, meta = 0) => world.setBlockGen(x, y, z, id, meta);
+    const radius = 25;
+    for (let dx = -radius; dx <= radius; dx++) for (let dz = -radius; dz <= radius; dz++) {
+      if (dx * dx + dz * dz > radius * radius) continue;
+      const x = cx + dx, z = cz + dz, ground = this.sample(x, z).h;
+      if (ground < baseY) for (let y = ground + 1; y <= baseY; y++) set(x, y, z, B.dirt);
+      else if (ground > baseY) for (let y = baseY + 1; y <= ground; y++) set(x, y, z, AIR);
+      const path = Math.abs(dx) <= 1 || Math.abs(dz) <= 1 || (Math.abs(dx) <= 8 && Math.abs(dz) <= 1) || (Math.abs(dz) <= 8 && Math.abs(dx) <= 1);
+      set(x, baseY, z, path ? B.dirt_path : B.grass_block);
+    }
+    for (let dx = -5; dx <= 5; dx++) for (let dz = -5; dz <= 5; dz++) set(cx + dx, baseY, cz + dz, B.stone_bricks);
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) set(cx + dx, baseY + 1, cz + dz, (dx === 0 && dz === 0) ? B.water : B.cobblestone);
+    for (const [dx, dz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) set(cx + dx, baseY + 1, cz + dz, B.torch);
+    for (const [dx, dz] of [[-14, -12], [14, -12], [-16, 12], [16, 12], [0, -19]]) this.placeVillageHouse(cx + dx, cz + dz, baseY);
+    for (let dz = -24; dz <= 24; dz++) set(cx, baseY, cz + dz, B.dirt_path);
+    for (let dx = -24; dx <= 24; dx++) set(cx + dx, baseY, cz, B.dirt_path);
+  },
+  placeVillageHouse(x, z, y) {
+    const set = (bx, by, bz, id, meta = 0) => world.setBlockGen(bx, by, bz, id, meta);
+    for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) {
+      set(x + dx, y + 1, z + dz, B.oak_planks);
+      for (let dy = 2; dy <= 5; dy++) {
+        const edge = Math.abs(dx) === 4 || Math.abs(dz) === 4;
+        if (!edge) { set(x + dx, y + dy, z + dz, AIR); continue; }
+        const window = dy === 3 && ((Math.abs(dx) === 4 && Math.abs(dz) <= 2) || (Math.abs(dz) === 4 && Math.abs(dx) <= 2));
+        set(x + dx, y + dy, z + dz, window ? B.glass : ((Math.abs(dx) === 4 && Math.abs(dz) === 4) ? B.oak_log : B.oak_planks));
+      }
+    }
+    for (let dx = -5; dx <= 5; dx++) for (let dz = -5; dz <= 5; dz++) set(x + dx, y + 6, z + dz, B.cobblestone);
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) set(x + dx, y + 7, z + dz, B.oak_planks);
+    set(x, y + 2, z + 4, B.oak_door, 0); set(x, y + 3, z + 4, B.oak_door, 1);
+    set(x - 2, y + 2, z, B.crafting_table); set(x + 2, y + 2, z, B.furnace);
+    set(x - 2, y + 2, z + 2, B.torch); set(x + 2, y + 2, z + 2, B.torch);
+  },
   // Cobblestone dungeon room with a spawner and a loot chest
   placeDungeon(c, r) {
     const lx = 3 + r.int(10), lz = 3 + r.int(10), y = 8 + r.int(32);
@@ -2008,6 +2047,8 @@ const Terrain = {
   },
   // Find a dry spawn column near the origin
   findSpawn() {
+    const village = this.sample(VILLAGE_CENTER.x, VILLAGE_CENTER.z);
+    if (village.h > SEA_LEVEL + 1 && village.biome !== BIO_MOUNTAINS) return [VILLAGE_CENTER.x + 0.5, village.h + 2, VILLAGE_CENTER.z + 0.5];
     for (let radius = 0; radius < 600; radius += 8) for (let a = 0; a < 16; a++) {
       const x = floor(Math.cos(a) * radius), z = floor(Math.sin(a) * radius);
       const s = this.sample(x, z);
@@ -5804,7 +5845,7 @@ const Multiplayer = {
 
 const Game = {
   running: false, paused: false, ready: false, mode: 'survival', cameraMode: 'first', seed: '', scene: null, camera: null, renderer: null, canvas: null,
-  last: 0, tickAccum: 0, autosave: 0, fov: 70,
+  last: 0, tickAccum: 0, autosave: 0, fov: 70, villageVillagersSpawned: false,
   init() {
     this.canvas = $('gl');
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: false, powerPreference: 'high-performance' });
@@ -5831,6 +5872,7 @@ const Game = {
   start(seed, data) {
     this.seed = String(seed);
     world.reset(this.seed); Terrain.init(this.seed); Scheduler.clear(); Entities.clear(); Mobs.clear(); Particles.n = 0;
+    this.villageVillagersSpawned = false;
     ChunkManager.needsScan = true; ChunkManager.pcx = 1e9; ChunkManager.stats = { generated: 0, meshed: 0, loaded: 0 };
     Sky.time = 1000; Sky.day = 0; Weather.raining = false; Weather.amount = 0;
     if (data) {
@@ -5908,6 +5950,19 @@ const Game = {
     player.x = best[0]; player.y = best[1]; player.z = best[2]; player.vy = 0; player.fallStart = best[1];
     player.spawn = best.slice(); this.freshSpawn = false;
   },
+  spawnVillageVillagers() {
+    if (this.villageVillagersSpawned || typeof Mobs === 'undefined' || typeof Mobs.spawnMob !== 'function') return;
+    const spots = [[-3, 32], [3, 32], [-8, 40], [8, 40], [-8, 48], [8, 48]];
+    let spawned = 0;
+    for (const [x, z] of spots) {
+      const y = world.getHeight(x, z);
+      const def = typeof MOB_TYPES !== 'undefined' ? MOB_TYPES.villager : null;
+      if (def && !Mobs.canStand(x, y, z, def)) continue;
+      const m = Mobs.spawnMob('villager', x + 0.5, y, z + 0.5);
+      if (m) { m.state = 'wander'; m.stateTimer = 1 + Math.random() * 3; spawned++; }
+    }
+    this.villageVillagersSpawned = spawned > 0;
+  },
   pause() { if (!this.running) return; AccountSync.save(true); this.paused = true; $('pause').classList.remove('hidden'); Input.unlock(); },
   resume() { this.paused = false; $('pause').classList.add('hidden'); if (!player.dead) Input.lock(); },
   toggleMode() {
@@ -5942,6 +5997,7 @@ const Game = {
         if (ChunkManager.isReady(player.x, player.z)) {
           this.ready = true; $('loading').classList.add('hidden');
           if (this.freshSpawn) this.settleSpawn(); else if (Physics.intersects(player)) player.y = world.getHeight(floor(player.x), floor(player.z)) + 1;
+          this.spawnVillageVillagers();
           Input.lock(); HUD.message('Click to capture the mouse if it is not captured.');
         }
       } else if (!this.paused) {
