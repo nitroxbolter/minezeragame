@@ -62,19 +62,40 @@ const PLAYER_SKINS = {
 };
 
 const ADMIN_MOB_CATALOG = [
-  { id: 'pig', name: 'Porco', kind: 'Passivo', health: 10, speed: 1.6, spawn: 'Geração natural' },
-  { id: 'cow', name: 'Vaca', kind: 'Passivo', health: 10, speed: 1.5, spawn: 'Geração natural' },
-  { id: 'sheep', name: 'Ovelha', kind: 'Passivo', health: 8, speed: 1.5, spawn: 'Geração natural' },
-  { id: 'chicken', name: 'Galinha', kind: 'Passivo', health: 4, speed: 1.7, spawn: 'Geração natural' },
-  { id: 'zombie', name: 'Zumbi', kind: 'Hostil', health: 20, speed: 2.4, spawn: 'Escuridão e spawner' },
-  { id: 'skeleton', name: 'Esqueleto', kind: 'Hostil à distância', health: 20, speed: 2.6, spawn: 'Escuridão e spawner' },
-  { id: 'creeper', name: 'Creeper', kind: 'Hostil explosivo', health: 20, speed: 2.6, spawn: 'Escuridão' },
-  { id: 'villager', name: 'Aldeão', kind: 'Passivo / trading', health: 20, speed: 1.25, spawn: 'Vila central' },
-  { id: 'pillager', name: 'Pillager', kind: 'Hostil à distância', health: 24, speed: 2.4, spawn: 'Mansão dos pillagers' },
-  { id: 'wolf', name: 'Lobo', kind: 'Domesticável', health: 12, speed: 2.5, spawn: 'Geração de fauna 26.2' },
-  { id: 'cat', name: 'Gato', kind: 'Domesticável', health: 10, speed: 2.8, spawn: 'Geração de fauna 26.2' },
-  { id: 'horse', name: 'Cavalo', kind: 'Montaria', health: 24, speed: 4.2, spawn: 'Geração de fauna 26.2' },
-  { id: 'bee', name: 'Abelha', kind: 'Passivo / colmeia', health: 10, speed: 2.6, spawn: 'Geração de fauna 26.2' }
+  { id: 'pig', name: 'Porco', kind: 'Passivo', health: 10, damage: 0, element: 'Nenhum', speed: 1.6, spawn: 'Geração natural' },
+  { id: 'cow', name: 'Vaca', kind: 'Passivo', health: 10, damage: 0, element: 'Nenhum', speed: 1.5, spawn: 'Geração natural' },
+  { id: 'sheep', name: 'Ovelha', kind: 'Passivo', health: 8, damage: 0, element: 'Nenhum', speed: 1.5, spawn: 'Geração natural' },
+  { id: 'chicken', name: 'Galinha', kind: 'Passivo', health: 4, damage: 0, element: 'Nenhum', speed: 1.7, spawn: 'Geração natural' },
+  { id: 'zombie', name: 'Zumbi', kind: 'Hostil', health: 20, damage: 3, element: 'Nenhum', speed: 2.4, spawn: 'Escuridão e spawner' },
+  { id: 'skeleton', name: 'Esqueleto', kind: 'Hostil à distância', health: 20, damage: 3, element: 'Nenhum', speed: 2.6, spawn: 'Escuridão e spawner' },
+  { id: 'creeper', name: 'Creeper', kind: 'Hostil explosivo', health: 20, damage: 12, element: 'Explosão', speed: 2.6, spawn: 'Escuridão' },
+  { id: 'villager', name: 'Aldeão', kind: 'Passivo / trading', health: 20, damage: 0, element: 'Nenhum', speed: 1.25, spawn: 'Vila central' },
+  { id: 'pillager', name: 'Pillager', kind: 'Hostil à distância', health: 24, damage: 4, element: 'Nenhum', speed: 2.4, spawn: 'Mansão dos pillagers' },
+  { id: 'wolf', name: 'Lobo', kind: 'Domesticável', health: 12, damage: 0, element: 'Nenhum', speed: 2.5, spawn: 'Geração de fauna 26.2' },
+  { id: 'cat', name: 'Gato', kind: 'Domesticável', health: 10, damage: 0, element: 'Nenhum', speed: 2.8, spawn: 'Geração de fauna 26.2' },
+  { id: 'horse', name: 'Cavalo', kind: 'Montaria', health: 24, damage: 0, element: 'Nenhum', speed: 4.2, spawn: 'Geração de fauna 26.2' },
+  { id: 'bee', name: 'Abelha', kind: 'Passivo / colmeia', health: 10, damage: 0, element: 'Nenhum', speed: 2.6, spawn: 'Geração de fauna 26.2' },
+  { id: 'zombie_villager', name: 'Aldeão zumbi', kind: 'Hostil', health: 20, damage: 3, element: 'Nenhum', speed: 2.35, spawn: 'Escuridão' },
+  { id: 'husk', name: 'Husk', kind: 'Hostil', health: 20, damage: 3, element: 'Nenhum', speed: 2.4, spawn: 'Escuridão / deserto' },
+  { id: 'drowned', name: 'Afogado', kind: 'Hostil à distância', health: 20, damage: 3, element: 'Nenhum', speed: 2.2, spawn: 'Água / escuridão' },
+  { id: 'witch', name: 'Bruxa', kind: 'Hostil à distância', health: 26, damage: 3, element: 'Veneno (+2)', speed: 1.8, spawn: 'Escuridão' },
+  { id: 'enderman', name: 'Enderman', kind: 'Hostil', health: 40, damage: 7, element: 'Nenhum', speed: 3.2, spawn: 'Escuridão' },
+  { id: 'blaze', name: 'Blaze', kind: 'Hostil à distância', health: 20, damage: 5, element: 'Fogo (+3)', speed: 2.2, spawn: 'Nether' },
+  { id: 'ghast', name: 'Ghast', kind: 'Hostil à distância', health: 10, damage: 6, element: 'Fogo (+4)', speed: 1.4, spawn: 'Nether' },
+  { id: 'spider', name: 'Aranha', kind: 'Hostil', health: 16, damage: 3, element: 'Nenhum', speed: 2.8, spawn: 'Escuridão' },
+  { id: 'cave_spider', name: 'Aranha de caverna', kind: 'Hostil', health: 12, damage: 2, element: 'Veneno (+1)', speed: 3, spawn: 'Caverna' },
+  { id: 'slime', name: 'Slime', kind: 'Hostil', health: 16, damage: 2, element: 'Nenhum', speed: 1.8, spawn: 'Cavernas' },
+  { id: 'magma_cube', name: 'Cubo de magma', kind: 'Hostil', health: 16, damage: 4, element: 'Fogo (+2)', speed: 1.8, spawn: 'Nether' },
+  { id: 'silverfish', name: 'Traça', kind: 'Hostil', health: 8, damage: 2, element: 'Nenhum', speed: 2.7, spawn: 'Cavernas' },
+  { id: 'guardian', name: 'Guardião', kind: 'Hostil à distância', health: 30, damage: 6, element: 'Nenhum', speed: 2, spawn: 'Água' },
+  { id: 'phantom', name: 'Phantom', kind: 'Hostil voador', health: 20, damage: 6, element: 'Nenhum', speed: 3.5, spawn: 'Céu noturno' },
+  { id: 'polar_bear', name: 'Urso polar', kind: 'Passivo', health: 30, damage: 6, element: 'Nenhum', speed: 1.8, spawn: 'Gelo' },
+  { id: 'rabbit', name: 'Coelho', kind: 'Passivo', health: 3, damage: 0, element: 'Nenhum', speed: 2.4, spawn: 'Geração natural' },
+  { id: 'bat', name: 'Morcego', kind: 'Passivo', health: 6, damage: 0, element: 'Nenhum', speed: 2.8, spawn: 'Cavernas' },
+  { id: 'iron_golem', name: 'Golem de ferro', kind: 'Neutro', health: 100, damage: 15, element: 'Nenhum', speed: 1.2, spawn: 'Vila central' },
+  { id: 'wandering_trader', name: 'Comerciante errante', kind: 'Passivo / trading', health: 20, damage: 0, element: 'Nenhum', speed: 1.25, spawn: 'Geração natural' },
+  { id: 'goat', name: 'Cabra', kind: 'Passivo', health: 19, damage: 2, element: 'Nenhum', speed: 2, spawn: 'Montanhas' },
+  { id: 'fox', name: 'Raposa', kind: 'Passivo', health: 10, damage: 2, element: 'Nenhum', speed: 2.4, spawn: 'Taiga' }
 ];
 
 let pool;
@@ -788,12 +809,14 @@ async function adminPage(user, { tab = 'servidor', message = '' } = {}) {
       <div class="mobs-heading"><div><span>Configuração do jogo</span><h2>Mobs ativos</h2></div><strong>${ADMIN_MOB_CATALOG.length} configurados</strong></div>
       <p>Esta lista mostra os mobs disponíveis para geração e uso no mundo. “Ativo” indica que modelo, atributos e comportamento estão habilitados.</p>
       <div class="mobs-table-wrap"><table class="mobs-table">
-        <thead><tr><th>Mob</th><th>ID</th><th>Tipo</th><th>Vida</th><th>Velocidade</th><th>Geração</th><th>Status</th></tr></thead>
+        <thead><tr><th>Mob</th><th>ID</th><th>Tipo</th><th>Vida</th><th>Dano</th><th>Elemental</th><th>Velocidade</th><th>Geração</th><th>Status</th></tr></thead>
         <tbody>${ADMIN_MOB_CATALOG.map((mob) => `<tr>
           <td><strong>${htmlEscape(mob.name)}</strong></td>
           <td><code>${htmlEscape(mob.id)}</code></td>
           <td>${htmlEscape(mob.kind)}</td>
           <td>${Number(mob.health)}</td>
+          <td>${Number(mob.damage || 0)}</td>
+          <td>${htmlEscape(mob.element || 'Nenhum')}</td>
           <td>${Number(mob.speed)}</td>
           <td>${htmlEscape(mob.spawn)}</td>
           <td><span class="mob-status active">Ativo</span></td>

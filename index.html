@@ -1502,7 +1502,28 @@ const ENTITY_TEXTURE_PATHS = {
   skeleton: ['assets/minecraft/textures/entity/skeleton/skeleton.png'],
   creeper: ['assets/minecraft/textures/entity/creeper/creeper.png'],
   villager: ['assets/minecraft/textures/entity/villager/villager.png'],
-  pillager: ['assets/minecraft/textures/entity/illager/pillager.png']
+  pillager: ['assets/minecraft/textures/entity/illager/pillager.png'],
+  zombie_villager: ['assets/minecraft/textures/entity/zombie_villager/zombie_villager.png'],
+  husk: ['assets/minecraft/textures/entity/zombie/husk.png'],
+  drowned: ['assets/minecraft/textures/entity/zombie/drowned.png'],
+  witch: ['assets/minecraft/textures/entity/witch/witch.png'],
+  enderman: ['assets/minecraft/textures/entity/enderman/enderman.png'],
+  blaze: ['assets/minecraft/textures/entity/blaze/blaze.png'],
+  ghast: ['assets/minecraft/textures/entity/ghast/ghast.png'],
+  spider: ['assets/minecraft/textures/entity/spider/spider.png'],
+  cave_spider: ['assets/minecraft/textures/entity/spider/cave_spider.png'],
+  slime: ['assets/minecraft/textures/entity/slime/slime.png'],
+  magma_cube: ['assets/minecraft/textures/entity/slime/magmacube.png', 'assets/minecraft/textures/entity/sulfur_cube/sulfur_cube_inner.png'],
+  silverfish: ['assets/minecraft/textures/entity/silverfish/silverfish.png'],
+  guardian: ['assets/minecraft/textures/entity/guardian/guardian.png'],
+  phantom: ['assets/minecraft/textures/entity/phantom/phantom.png'],
+  polar_bear: ['assets/minecraft/textures/entity/bear/polarbear.png'],
+  rabbit: ['assets/minecraft/textures/entity/rabbit/rabbit_white.png'],
+  bat: ['assets/minecraft/textures/entity/bat/bat.png'],
+  iron_golem: ['assets/minecraft/textures/entity/iron_golem/iron_golem.png'],
+  wandering_trader: ['assets/minecraft/textures/entity/wandering_trader/wandering_trader.png'],
+  goat: ['assets/minecraft/textures/entity/goat/goat.png'],
+  fox: ['assets/minecraft/textures/entity/fox/fox.png']
 };
 
 const ResourcePack = {
@@ -4191,8 +4212,8 @@ const Entities = {
     this.scene.add(e.mesh); this.list.push(e);
     return e;
   },
-  spawnArrow(x, y, z, vx, vy, vz, owner, damage) {
-    const e = { kind: 'arrow', x, y, z, vx, vy, vz, owner, damage, age: 0, stuck: false, w: 0.05, h: 0.05 };
+  spawnArrow(x, y, z, vx, vy, vz, owner, damage, element = null, elementDuration = 0) {
+    const e = { kind: 'arrow', x, y, z, vx, vy, vz, owner, damage, element, elementDuration, age: 0, stuck: false, w: 0.05, h: 0.05 };
     e.mesh = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.6), new THREE.MeshLambertMaterial({ color: 0x8a6a3a }));
     this.scene.add(e.mesh); this.list.push(e);
     return e;
@@ -4255,7 +4276,10 @@ const Entities = {
         else if (!p.dead && Math.abs(p.x - nx) < 0.5 && Math.abs(p.z - nz) < 0.5 && ny > p.y - 0.1 && ny < p.y + p.h + 0.1) victim = 'player';
         if (victim) {
           const kb = [Math.sign(e.vx) * 3, 2, Math.sign(e.vz) * 3];
-          if (victim === 'player') Player.damage(e.damage, 'was shot by a skeleton', kb); else victim.hurt(e.damage, 'arrow', kb);
+          if (victim === 'player') {
+            Player.damage(e.damage, 'was hit by a ' + (e.owner || 'mob') + (e.element === 'fire' ? ' fire attack' : ''), kb);
+            if (e.element) Mobs.applyElemental(e);
+          } else victim.hurt(e.damage, 'arrow', kb);
           this.remove(e); continue;
         }
         if (hit) { e.stuck = true; e.x = hit.px; e.y = hit.py; e.z = hit.pz; e.age = 0; }
@@ -4310,14 +4334,35 @@ const TICK_FLUID = 0, TICK_FALL = 1, TICK_REDSTONE = 2, TICK_FIRE = 3;
    with the procedural colours retained as a fallback.
    ========================================================================== */
 const MOB_TYPES = {
-  pig:      { w: 0.45, h: 0.9,  health: 10, speed: 1.6, passive: true,  drops: [['porkchop', 1, 3]], name: 'Pig' },
-  cow:      { w: 0.45, h: 1.4,  health: 10, speed: 1.5, passive: true,  drops: [['beef', 1, 3], ['leather', 0, 2]], name: 'Cow' },
-  sheep:    { w: 0.45, h: 1.3,  health: 8,  speed: 1.5, passive: true,  drops: [['mutton', 1, 2]], name: 'Sheep' },
-  chicken:  { w: 0.2,  h: 0.7,  health: 4,  speed: 1.7, passive: true,  drops: [['chicken', 1, 1], ['feather', 0, 2]], name: 'Chicken' },
+  pig:      { w: 0.45, h: 0.9,  health: 10, speed: 1.6, passive: true,  damage: 0, drops: [['porkchop', 1, 3]], name: 'Pig' },
+  cow:      { w: 0.45, h: 1.4,  health: 10, speed: 1.5, passive: true,  damage: 0, drops: [['beef', 1, 3], ['leather', 0, 2]], name: 'Cow' },
+  sheep:    { w: 0.45, h: 1.3,  health: 8,  speed: 1.5, passive: true,  damage: 0, drops: [['mutton', 1, 2]], name: 'Sheep' },
+  chicken:  { w: 0.2,  h: 0.7,  health: 4,  speed: 1.7, passive: true,  damage: 0, drops: [['chicken', 1, 1], ['feather', 0, 2]], name: 'Chicken' },
   zombie:   { w: 0.3,  h: 1.95, health: 20, speed: 2.4, hostile: true,  damage: 3, drops: [['rotten_flesh', 0, 2]], burns: true, name: 'Zombie' },
-  skeleton: { w: 0.3,  h: 1.99, health: 20, speed: 2.6, hostile: true,  ranged: true, drops: [['bone', 0, 2], ['arrow', 0, 2]], burns: true, name: 'Skeleton' },
+  skeleton: { w: 0.3,  h: 1.99, health: 20, speed: 2.6, hostile: true,  ranged: true, damage: 3, drops: [['bone', 0, 2], ['arrow', 0, 2]], burns: true, name: 'Skeleton' },
   pillager: { w: 0.3,  h: 1.95, health: 24, speed: 2.35, hostile: true, ranged: true, damage: 4, drops: [['emerald', 0, 1], ['arrow', 0, 2]], name: 'Pillager' },
-  creeper:  { w: 0.3,  h: 1.7,  health: 20, speed: 2.6, hostile: true,  explodes: true, drops: [['gunpowder', 0, 2]], name: 'Creeper' }
+  creeper:  { w: 0.3,  h: 1.7,  health: 20, speed: 2.6, hostile: true,  damage: 12, explodes: true, drops: [['gunpowder', 0, 2]], name: 'Creeper' },
+  zombie_villager: { w: 0.3, h: 1.95, health: 20, speed: 2.35, hostile: true, damage: 3, drops: [['rotten_flesh', 0, 2]], burns: true, name: 'Zombie Villager' },
+  husk:            { w: 0.3, h: 1.95, health: 20, speed: 2.4, hostile: true, damage: 3, drops: [['rotten_flesh', 0, 2]], name: 'Husk' },
+  drowned:         { w: 0.3, h: 1.95, health: 20, speed: 2.2, hostile: true, damage: 3, ranged: true, drops: [['rotten_flesh', 0, 2]], name: 'Drowned' },
+  witch:           { w: 0.3, h: 1.95, health: 26, speed: 1.8, hostile: true, ranged: true, damage: 3, element: 'poison', elementDamage: 2, elementDuration: 80, drops: [], name: 'Witch' },
+  enderman:        { w: 0.35, h: 2.9, health: 40, speed: 3.2, hostile: true, damage: 7, drops: [], name: 'Enderman' },
+  blaze:           { w: 0.35, h: 1.8, health: 20, speed: 2.2, hostile: true, ranged: true, damage: 5, element: 'fire', elementDamage: 3, elementDuration: 100, drops: [], name: 'Blaze' },
+  ghast:           { w: 0.7, h: 2.0, health: 10, speed: 1.4, hostile: true, ranged: true, damage: 6, element: 'fire', elementDamage: 4, elementDuration: 120, drops: [], name: 'Ghast' },
+  spider:          { w: 0.7, h: 0.9, health: 16, speed: 2.8, hostile: true, damage: 3, drops: [], name: 'Spider' },
+  cave_spider:     { w: 0.35, h: 0.5, health: 12, speed: 3.0, hostile: true, damage: 2, element: 'poison', elementDamage: 1, elementDuration: 60, drops: [], name: 'Cave Spider' },
+  slime:           { w: 0.6, h: 0.8, health: 16, speed: 1.8, hostile: true, damage: 2, drops: [], name: 'Slime' },
+  magma_cube:      { w: 0.6, h: 0.8, health: 16, speed: 1.8, hostile: true, damage: 4, element: 'fire', elementDamage: 2, elementDuration: 60, drops: [], name: 'Magma Cube' },
+  silverfish:      { w: 0.25, h: 0.4, health: 8, speed: 2.7, hostile: true, damage: 2, drops: [], name: 'Silverfish' },
+  guardian:        { w: 0.6, h: 0.85, health: 30, speed: 2.0, hostile: true, ranged: true, damage: 6, drops: [], name: 'Guardian' },
+  phantom:         { w: 0.8, h: 0.5, health: 20, speed: 3.5, hostile: true, damage: 6, drops: [], name: 'Phantom' },
+  polar_bear:      { w: 0.7, h: 1.4, health: 30, speed: 1.8, passive: true, damage: 6, drops: [], name: 'Polar Bear' },
+  rabbit:          { w: 0.25, h: 0.5, health: 3, speed: 2.4, passive: true, damage: 0, drops: [], name: 'Rabbit' },
+  bat:             { w: 0.25, h: 0.5, health: 6, speed: 2.8, passive: true, damage: 0, drops: [], name: 'Bat' },
+  iron_golem:      { w: 0.7, h: 2.7, health: 100, speed: 1.2, passive: true, damage: 15, drops: [], name: 'Iron Golem' },
+  wandering_trader:{ w: 0.3, h: 1.9, health: 20, speed: 1.25, passive: true, damage: 0, drops: [], name: 'Wandering Trader' },
+  goat:            { w: 0.45, h: 1.3, health: 19, speed: 2.0, passive: true, damage: 2, drops: [], name: 'Goat' },
+  fox:             { w: 0.35, h: 0.8, health: 10, speed: 2.4, passive: true, damage: 2, drops: [], name: 'Fox' }
 };
 const SHEEP_COLOR_WEIGHTS = [['white', 81], ['black', 5], ['gray', 5], ['light_gray', 5], ['brown', 3], ['pink', 1]];
 
@@ -4479,22 +4524,23 @@ const Mobs = {
       for (const [lx, lz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) parts.legs.push(this.box(g, 4, 6, 4, lx, 6, lz, '#ffffff', { pivotTop: true, texture: 'creeper', uv: this.cubeUV(0, 16, 4, 6, 4, 64, 32) }));
     } else {
       const pillager = t === 'pillager';
-      const skin = t === 'zombie' ? '#3f7a3f' : pillager ? '#8d6957' : '#c8c8c8';
-      const shirt = t === 'zombie' ? '#2c6a8c' : pillager ? '#59616b' : '#c8c8c8';
+      const textureType = t;
+      const skin = t === 'zombie' || t === 'zombie_villager' || t === 'husk' || t === 'drowned' ? '#3f7a3f' : pillager ? '#8d6957' : '#c8c8c8';
+      const shirt = t === 'zombie' || t === 'zombie_villager' || t === 'husk' || t === 'drowned' ? '#2c6a8c' : pillager ? '#59616b' : '#c8c8c8';
       const pants = t === 'zombie' ? '#3a2f8a' : pillager ? '#303843' : '#c8c8c8';
       const baseColor = pillager ? shirt : '#ffffff';
       const lw = t === 'skeleton' ? 2 : 4;
-      const texH = t === 'zombie' ? 64 : 32;
-      parts.body = this.box(g, 8, 12, 4, 0, 18, 0, baseColor, { texture: t, uv: this.cubeUV(16, 16, 8, 12, 4, 64, texH) });
-      parts.head = this.box(g, 8, 8, 8, 0, 28, 0, skin, { texture: t, uv: this.cubeUV(0, 0, 8, 8, 8, 64, texH), face: face(skin) });
+      const texH = ['zombie', 'zombie_villager', 'husk', 'drowned', 'enderman'].includes(textureType) ? 64 : 32;
+      parts.body = this.box(g, 8, 12, 4, 0, 18, 0, baseColor, { texture: textureType, uv: this.cubeUV(16, 16, 8, 12, 4, 64, texH) });
+      parts.head = this.box(g, 8, 8, 8, 0, 28, 0, skin, { texture: textureType, uv: this.cubeUV(0, 0, 8, 8, 8, 64, texH), face: face(skin) });
       const rightLegUV = this.cubeUV(0, 16, lw, 12, lw, 64, texH);
       const leftLegUV = t === 'zombie' ? rightLegUV : this.cubeUV(0, 16, 2, 12, 2, 64, 32);
-      parts.legs.push(this.box(g, lw, 12, lw, -2, 12, 0, pants, { pivotTop: true, texture: t, uv: leftLegUV }));
-      parts.legs.push(this.box(g, lw, 12, lw, 2, 12, 0, pants, { pivotTop: true, texture: t, uv: rightLegUV }));
+      parts.legs.push(this.box(g, lw, 12, lw, -2, 12, 0, pants, { pivotTop: true, texture: textureType, uv: leftLegUV }));
+      parts.legs.push(this.box(g, lw, 12, lw, 2, 12, 0, pants, { pivotTop: true, texture: textureType, uv: rightLegUV }));
       const rightArmUV = this.cubeUV(40, 16, lw, 12, lw, 64, texH);
       const leftArmUV = t === 'zombie' ? rightArmUV : this.cubeUV(40, 16, 2, 12, 2, 64, 32);
-      parts.arms.push(this.box(g, lw, 12, lw, -6, 24, 0, shirt, { pivotTop: true, texture: t, uv: leftArmUV }));
-      parts.arms.push(this.box(g, lw, 12, lw, 6, 24, 0, shirt, { pivotTop: true, texture: t, uv: rightArmUV }));
+      parts.arms.push(this.box(g, lw, 12, lw, -6, 24, 0, shirt, { pivotTop: true, texture: textureType, uv: leftArmUV }));
+      parts.arms.push(this.box(g, lw, 12, lw, 6, 24, 0, shirt, { pivotTop: true, texture: textureType, uv: rightArmUV }));
       if (t === 'zombie') for (const a of parts.arms) a.rotation.x = Math.PI / 2;
       if (t === 'skeleton') {
         parts.arms[0].rotation.x = Math.PI / 2 + 0.18;
@@ -4561,7 +4607,7 @@ const Mobs = {
         if (rng.chance(0.3)) {
           const lx = rng.int(16), lz = rng.int(16), x = cx * 16 + lx, z = cz * 16 + lz, y = c.height[lx * 16 + lz];
           if (world.getBlock(x, y - 1, z) === B.grass_block) {
-            const type = rng.pick(['pig', 'cow', 'sheep', 'chicken', 'sheep', 'cow']);
+            const type = rng.pick(['pig', 'cow', 'sheep', 'chicken', 'sheep', 'cow', 'rabbit', 'fox', 'goat']);
             const n = rng.irange(2, 4);
             for (let i = 0; i < n; i++) { const sx = x + rng.irange(-3, 3), sz = z + rng.irange(-3, 3), sy = world.getHeight(sx, sz); if (this.canStand(sx, sy, sz, MOB_TYPES[type])) this.spawnMob(type, sx + 0.5, sy, sz + 0.5); }
           }
@@ -4577,7 +4623,7 @@ const Mobs = {
         const y = rng.chance(0.5) ? surface : rng.irange(5, Math.max(6, surface));
         const d = Math.sqrt(dist2(x, y, z, p.x, p.y, p.z));
         if (d > 24 && d < 70) {
-          const type = rng.pick(['zombie', 'zombie', 'skeleton', 'creeper']);
+          const type = rng.pick(['zombie', 'zombie', 'skeleton', 'creeper', 'zombie_villager', 'husk', 'drowned', 'witch', 'enderman', 'spider', 'silverfish']);
           if (this.canStand(x, y, z, MOB_TYPES[type]) && world.getLightLevel(x, y, z, Sky.dayFactor) < 8 && !world.getDef(x, y - 1, z).liquid) {
             const n = rng.irange(1, 3);
             for (let i = 0; i < n; i++) { const sx = x + rng.irange(-2, 2), sz = z + rng.irange(-2, 2); if (this.canStand(sx, y, sz, MOB_TYPES[type])) this.spawnMob(type, sx + 0.5, y, sz + 0.5); }
@@ -4599,6 +4645,18 @@ const Mobs = {
     }
   },
 
+  applyElemental(effect) {
+    if (!effect || !effect.element) return;
+    if (effect.element === 'fire') {
+      player.fire = Math.max(player.fire || 0, effect.elementDuration || 80);
+      return;
+    }
+    if (effect.element === 'poison') {
+      player.effects = player.effects || {};
+      const current = player.effects.poison;
+      player.effects.poison = { ticks: Math.max(current ? current.ticks : 0, effect.elementDuration || 60), level: 0 };
+    }
+  },
   // ---- Per-tick AI (20 Hz) ----
   tick() {
     const p = player, day = Sky.dayFactor;
@@ -4625,14 +4683,14 @@ const Mobs = {
         m.yaw = Math.atan2(-dx, -dz);
         if (d.ranged) {
           if (hd < 5) { m.moveX = -dx / hd; m.moveZ = -dz / hd; } else if (hd > 9) { m.moveX = dx / hd; m.moveZ = dz / hd; } else { m.moveX = -dz / hd * 0.6; m.moveZ = dx / hd * 0.6; }
-          if (m.attackCooldown <= 0 && hd < 16 && this.lineOfSight(m)) { m.attackCooldown = 40; const ex = m.x, ey = m.y + m.h - 0.3, ez = m.z; const tx = p.x - ex, ty = p.y + 1.2 - ey + hd * 0.05, tz = p.z - ez; const l = Math.hypot(tx, ty, tz); Entities.spawnArrow(ex, ey, ez, tx / l * 24, ty / l * 24, tz / l * 24, 'skeleton', 2 + rng.int(3)); }
+          if (m.attackCooldown <= 0 && hd < 16 && this.lineOfSight(m)) { m.attackCooldown = 40; const ex = m.x, ey = m.y + m.h - 0.3, ez = m.z; const tx = p.x - ex, ty = p.y + 1.2 - ey + hd * 0.05, tz = p.z - ez; const l = Math.hypot(tx, ty, tz); Entities.spawnArrow(ex, ey, ez, tx / l * 24, ty / l * 24, tz / l * 24, d.name, (d.damage || 3) + (d.elementDamage || 0), d.element || null, d.elementDuration || 0); }
         } else if (d.explodes) {
           m.moveX = dx / hd; m.moveZ = dz / hd;
           if (hd < 3) { if (m.fuse < 0) m.fuse = 30; } else if (hd > 6) m.fuse = -1;
           if (m.fuse >= 0) { m.fuse--; if (m.fuse <= 0) { this.remove(m); Entities.explode(m.x, m.y + 0.5, m.z, 3); continue; } }
         } else {
           m.moveX = dx / hd; m.moveZ = dz / hd;
-          if (hd < 1.8 && Math.abs(p.y - m.y) < 2 && m.attackCooldown <= 0) { m.attackCooldown = 20; Player.damage(d.damage, 'was slain by a ' + d.name, [dx / hd * 6, 3, dz / hd * 6]); }
+          if (hd < 1.8 && Math.abs(p.y - m.y) < 2 && m.attackCooldown <= 0) { m.attackCooldown = 20; Player.damage((d.damage || 0) + (d.elementDamage || 0), 'was slain by a ' + d.name + (d.element === 'fire' ? ' fire attack' : ''), [dx / hd * 6, 3, dz / hd * 6]); this.applyElemental(d); }
         }
       } else if (m.state === 'flee' && m.stateTimer > 0) {
         const dx = m.x - m.fleeFrom[0], dz = m.z - m.fleeFrom[2], hd = Math.hypot(dx, dz) || 1;
