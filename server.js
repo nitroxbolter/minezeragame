@@ -61,6 +61,22 @@ const PLAYER_SKINS = {
   clouds: 'clouds-24335191.png'
 };
 
+const ADMIN_MOB_CATALOG = [
+  { id: 'pig', name: 'Porco', kind: 'Passivo', health: 10, speed: 1.6, spawn: 'Geração natural' },
+  { id: 'cow', name: 'Vaca', kind: 'Passivo', health: 10, speed: 1.5, spawn: 'Geração natural' },
+  { id: 'sheep', name: 'Ovelha', kind: 'Passivo', health: 8, speed: 1.5, spawn: 'Geração natural' },
+  { id: 'chicken', name: 'Galinha', kind: 'Passivo', health: 4, speed: 1.7, spawn: 'Geração natural' },
+  { id: 'zombie', name: 'Zumbi', kind: 'Hostil', health: 20, speed: 2.4, spawn: 'Escuridão e spawner' },
+  { id: 'skeleton', name: 'Esqueleto', kind: 'Hostil à distância', health: 20, speed: 2.6, spawn: 'Escuridão e spawner' },
+  { id: 'creeper', name: 'Creeper', kind: 'Hostil explosivo', health: 20, speed: 2.6, spawn: 'Escuridão' },
+  { id: 'villager', name: 'Aldeão', kind: 'Passivo / trading', health: 20, speed: 1.25, spawn: 'Vila central' },
+  { id: 'pillager', name: 'Pillager', kind: 'Hostil à distância', health: 24, speed: 2.4, spawn: 'Mansão dos pillagers' },
+  { id: 'wolf', name: 'Lobo', kind: 'Domesticável', health: 12, speed: 2.5, spawn: 'Geração de fauna 26.2' },
+  { id: 'cat', name: 'Gato', kind: 'Domesticável', health: 10, speed: 2.8, spawn: 'Geração de fauna 26.2' },
+  { id: 'horse', name: 'Cavalo', kind: 'Montaria', health: 24, speed: 4.2, spawn: 'Geração de fauna 26.2' },
+  { id: 'bee', name: 'Abelha', kind: 'Passivo / colmeia', health: 10, speed: 2.6, spawn: 'Geração de fauna 26.2' }
+];
+
 let pool;
 const sessions = new Map();
 const sockets = new Map();
@@ -302,9 +318,11 @@ function normalizeSkinId(value) {
 
 async function topPlayers() {
   return query(
-    `SELECT nome, nivel, exp, skin_id
-     FROM personagens
-     ORDER BY nivel DESC, exp DESC, kills DESC, atualizado_em ASC
+    `SELECT p.nome, p.nivel, p.exp, p.skin_id
+     FROM personagens p
+     INNER JOIN contas c ON c.id = p.conta_id
+     WHERE COALESCE(c.tipo, 1) <> 3
+     ORDER BY p.nivel DESC, p.exp DESC, p.kills DESC, p.atualizado_em ASC
      LIMIT 5`
   );
 }
@@ -726,7 +744,7 @@ async function adminPage(user, { tab = 'servidor', message = '' } = {}) {
   adminOnly(user);
   const status = await serviceStatus();
   const active = status === 'active';
-  const nav = ['servidor', 'contas', 'itens'].map((name) =>
+  const nav = ['servidor', 'contas', 'itens', 'mobs'].map((name) =>
     `<a class="button-secondary" href="${htmlEscape(appUrl(`/admin?tab=${name}`))}">${name[0].toUpperCase() + name.slice(1)}</a>`
   ).join('');
   let body = '';
@@ -765,6 +783,23 @@ async function adminPage(user, { tab = 'servidor', message = '' } = {}) {
       </tr>`).join('')}</tbody></table></div></section>`;
   } else if (tab === 'itens') {
     return adminItemsPage(user, { message });
+  } else if (tab === 'mobs') {
+    body = `<section class="skills admin-mobs-page">
+      <div class="mobs-heading"><div><span>Configuração do jogo</span><h2>Mobs ativos</h2></div><strong>${ADMIN_MOB_CATALOG.length} configurados</strong></div>
+      <p>Esta lista mostra os mobs disponíveis para geração e uso no mundo. “Ativo” indica que modelo, atributos e comportamento estão habilitados.</p>
+      <div class="mobs-table-wrap"><table class="mobs-table">
+        <thead><tr><th>Mob</th><th>ID</th><th>Tipo</th><th>Vida</th><th>Velocidade</th><th>Geração</th><th>Status</th></tr></thead>
+        <tbody>${ADMIN_MOB_CATALOG.map((mob) => `<tr>
+          <td><strong>${htmlEscape(mob.name)}</strong></td>
+          <td><code>${htmlEscape(mob.id)}</code></td>
+          <td>${htmlEscape(mob.kind)}</td>
+          <td>${Number(mob.health)}</td>
+          <td>${Number(mob.speed)}</td>
+          <td>${htmlEscape(mob.spawn)}</td>
+          <td><span class="mob-status active">Ativo</span></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </section>`;
   } else if (tab === 'itens-legado') {
     const accounts = await query('SELECT p.conta_id, c.login, p.nome FROM personagens p INNER JOIN contas c ON c.id = p.conta_id ORDER BY c.login');
     body = `<section class="skills"><h2>Gerenciador de itens</h2>${message ? `<div class="alert">${htmlEscape(message)}</div>` : ''}

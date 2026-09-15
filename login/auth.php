@@ -134,9 +134,11 @@ function top_players(int $limit = 5): array
 {
     $limit = max(1, min(5, $limit));
     $stmt = db()->query(
-        'SELECT nome, nivel, exp, skin_id
-         FROM personagens
-         ORDER BY nivel DESC, exp DESC, kills DESC, atualizado_em ASC
+        'SELECT p.nome, p.nivel, p.exp, p.skin_id
+         FROM personagens p
+         INNER JOIN contas c ON c.id = p.conta_id
+         WHERE COALESCE(c.tipo, 1) <> 3
+         ORDER BY p.nivel DESC, p.exp DESC, p.kills DESC, p.atualizado_em ASC
          LIMIT ' . $limit
     );
 
