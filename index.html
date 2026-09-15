@@ -343,7 +343,7 @@
   </div>
 
   <!-- Title / start screen -->
-  <div id="start" class="overlay">
+  <div id="start" class="overlay hidden">
     <div class="panel" style="min-width: 520px; background: rgba(40,40,40,0.9); color:#ddd;">
       <div id="title-logo">FP CRAFT</div>
       <div id="title-sub">Mundo de teste 1000 x 1000 · montanhas · lagos · cavernas</div>
@@ -356,8 +356,8 @@
   </div>
 
   <!-- Loading overlay -->
-  <div id="loading" class="overlay hidden">
-    <div class="panel"><h2 id="loadtext">Generating world…</h2><div id="loadbar"><i></i></div></div>
+  <div id="loading" class="overlay">
+    <div class="panel"><h2 id="loadtext">Carregando Minezera…</h2><div id="loadbar"><i></i></div></div>
   </div>
 
   <!-- Skin settings -->
@@ -5351,7 +5351,9 @@ const PlayerSkins = {
   load() {
     this.saved = false;
     try {
-      const saved = localStorage.getItem(this.storageKey());
+      const accountKey = this.storageKey();
+      const saved = localStorage.getItem(accountKey) || localStorage.getItem(this.KEY);
+      if (saved && !localStorage.getItem(accountKey)) localStorage.setItem(accountKey, saved);
       if (this.list.some(s => s.id === saved)) { this.selected = saved; this.saved = true; }
     } catch (e) { /* localStorage unavailable */ }
     return this.saved;
@@ -5423,6 +5425,8 @@ const MobileDisplay = {
   }
 };
 const Menus = {
+  starting: false,
+  resourcePackPromise: Promise.resolve(null),
   testSeed() {
     return TEST_WORLD_SEED_PREFIX;
   },
@@ -5435,18 +5439,44 @@ const Menus = {
     $('game-settings').classList.add('hidden');
     if (Game.running) $('pause').classList.remove('hidden');
   },
+  showLoading(message = 'Carregando Minezera…') {
+    $('start').classList.add('hidden');
+    $('loading').classList.remove('hidden');
+    $('loadtext').textContent = message;
+    $('loadbar').firstElementChild.style.width = '4%';
+  },
+  async preloadAssets() {
+    const tasks = [this.resourcePackPromise];
+    const skin = PlayerSkins.current();
+    tasks.push(new Promise((resolve) => {
+      const image = new Image();
+      image.onload = image.onerror = () => resolve();
+      image.src = skin.file;
+    }));
+    const sound = window.MinezeraSound;
+    const soundUrls = sound && sound.samples ? [...new Set(Object.values(sound.samples).flat())] : [];
+    for (const url of soundUrls) tasks.push(fetch(url, { cache: 'force-cache' }).then((r) => r.ok ? r.arrayBuffer() : null).catch(() => null));
+    await Promise.all(tasks);
+  },
   async playTestWorld() {
-    const d = await Save.loadData();
-    if (d && d.version === WORLD_GENERATION_VERSION && d.seed === this.testSeed()) { Save.apply(d); return; }
-    Game.mode = isAdminPlayer() ? 'creative' : 'survival';
-    ChunkManager.setRenderDistance(6);
-    $('rd-slider').value = ChunkManager.renderDistance;
-    $('rd-val').textContent = ChunkManager.renderDistance;
-    Game.start(this.testSeed(), null);
+    if (this.starting) return;
+    this.starting = true;
+    this.showLoading('Carregando recursos…');
+    try {
+      const [d] = await Promise.all([Save.loadData(), this.preloadAssets()]);
+      if (d && d.version === WORLD_GENERATION_VERSION && d.seed === this.testSeed()) { Save.apply(d); return; }
+      Game.mode = isAdminPlayer() ? 'creative' : 'survival';
+      ChunkManager.setRenderDistance(6);
+      $('rd-slider').value = ChunkManager.renderDistance;
+      $('rd-val').textContent = ChunkManager.renderDistance;
+      Game.start(this.testSeed(), null);
+    } finally {
+      this.starting = false;
+    }
   },
   init() {
     GameSettings.init();
-    PlayerSkins.load();
+    const skinSaved = PlayerSkins.load();
     PlayerSkins.renderAll();
     PlayerSkins.updateSavedUi();
     $('btn-logout').href = ((window.MINEZERA_BASE_PATH || '') + '/logout') || '/logout';
@@ -5462,9 +5492,10 @@ const Menus = {
         if (blob.size < 1024) return;
         const result = await ResourcePack.load(new File([blob], 'Minecraft 26.2.zip'));
         HUD.message(`Faithful 32x: ${result.count}/${result.total} blocos e itens, ${result.entities} entidades`);
+        return result;
       } catch (e) { console.warn('Default resource pack failed:', e); }
     };
-    loadDefaultPack();
+    this.resourcePackPromise = loadDefaultPack();
     $('btn-play').addEventListener('click', () => {
       MobileDisplay.enterGame();
       this.playTestWorld();
@@ -5491,6 +5522,13 @@ const Menus = {
     $('btn-mode').addEventListener('click', () => Game.toggleMode());
     $('rd-slider').addEventListener('input', (e) => { ChunkManager.setRenderDistance(parseInt(e.target.value)); $('rd-val').textContent = e.target.value; });
     $('btn-respawn').addEventListener('click', () => Player.respawn());
+    if (skinSaved) {
+      this.showLoading('Entrando no mundo…');
+      setTimeout(() => { MobileDisplay.enterGame(); this.playTestWorld(); }, 0);
+    } else {
+      $('loading').classList.add('hidden');
+      $('start').classList.remove('hidden');
+    }
     Events.on('unlock', () => {
       if (Screens.suppressUnlock) { Screens.suppressUnlock = false; return; }
       if (Game.running && !Screens.isOpen() && !player.dead && !Game.paused && Game.ready) Game.pause();
@@ -5991,17 +6029,19 @@ const Game = {
       }
     } else {
       if (window.MINEZERA_PLAYER && window.MINEZERA_PLAYER.dias_jogados) Sky.day = Math.max(0, Number(window.MINEZERA_PLAYER.dias_jogados) - 1);
-      const spawn = Terrain.findSpawn();
-      Player.reset(spawn); this.freshSpawn = true;
+      const account = window.MINEZERA_PLAYER || {};
+      const hasPosition = Number.isFinite(Number(account.pos_x)) && Number.isFinite(Number(account.pos_y)) && Number.isFinite(Number(account.pos_z));
+      const spawn = hasPosition ? [Number(account.pos_x), Number(account.pos_y), Number(account.pos_z)] : Terrain.findSpawn();
+      Player.reset(spawn); this.freshSpawn = !hasPosition;
       if (window.MINEZERA_PLAYER) {
-        const accountSpawn = window.MINEZERA_PLAYER;
-        const hasBedSpawn = Number.isFinite(Number(accountSpawn.spawn_x)) && Number.isFinite(Number(accountSpawn.spawn_y)) && Number.isFinite(Number(accountSpawn.spawn_z));
-        if (hasBedSpawn) player.spawn = [Number(accountSpawn.spawn_x), Number(accountSpawn.spawn_y), Number(accountSpawn.spawn_z)];
-        Player.applyProgress(window.MINEZERA_PLAYER.nivel, window.MINEZERA_PLAYER.exp, window.MINEZERA_PLAYER.kills);
-        player.health = Player.normalizeStat(window.MINEZERA_PLAYER.hp, player.maxHealth, player.maxHealth);
-        player.hunger = Player.normalizeStat(window.MINEZERA_PLAYER.hunger, PLAYER_MAX_HUNGER, PLAYER_MAX_HUNGER);
-        if (Array.isArray(window.MINEZERA_PLAYER.inventory)) {
-          player.inventory = window.MINEZERA_PLAYER.inventory.map(s => s ? { name: s.name, count: s.count, dur: s.dur, ench: s.ench ? { ...s.ench } : undefined, trim: s.trim ? { ...s.trim } : undefined } : null);
+        const hasBedSpawn = Number.isFinite(Number(account.spawn_x)) && Number.isFinite(Number(account.spawn_y)) && Number.isFinite(Number(account.spawn_z));
+        if (hasBedSpawn) player.spawn = [Number(account.spawn_x), Number(account.spawn_y), Number(account.spawn_z)];
+        Player.applyProgress(account.nivel, account.exp, account.kills);
+        player.health = Player.normalizeStat(account.hp, player.maxHealth, player.maxHealth);
+        player.hunger = Player.normalizeStat(account.hunger, PLAYER_MAX_HUNGER, PLAYER_MAX_HUNGER);
+        Object.assign(player, { yaw: Number(account.yaw) || 0, pitch: Number(account.pitch) || 0, hotbar: Number(account.hotbar) || 0 });
+        if (Array.isArray(account.inventory)) {
+          player.inventory = account.inventory.map(s => s ? { name: s.name, count: s.count, dur: s.dur, ench: s.ench ? { ...s.ench } : undefined, trim: s.trim ? { ...s.trim } : undefined } : null);
           while (player.inventory.length < 36) player.inventory.push(null);
           player.inventory.length = 36;
         }
@@ -6121,6 +6161,7 @@ window.addEventListener('load', () => {
   catch (e) { console.error(e); document.body.insertAdjacentHTML('beforeend', '<pre style="color:#f88;position:absolute;top:0;left:0;z-index:99;background:#000;padding:8px">Startup error: ' + e.message + '\n' + e.stack + '</pre>'); }
 });
 window.addEventListener('beforeunload', () => { if (Game.running && Game.ready) Save.saveSync(); });
+window.addEventListener('pagehide', () => { if (Game.running && Game.ready) AccountSync.saveSync(); });
 
 /* ============================================================================
    REMAINING LARGE-SCOPE FEATURES
