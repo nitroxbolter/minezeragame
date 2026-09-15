@@ -389,6 +389,14 @@ const TEST_WORLD_HALF = TEST_WORLD_SIZE / 2;
 const TEST_WORLD_SEED_PREFIX = 'minezera-ilha-biomas-v3-vila';
 const WORLD_GENERATION_VERSION = 3;
 const VILLAGE_CENTER = Object.freeze({ x: 0, z: 40 });
+// Area around the first-spawn village where players cannot build or break blocks.
+// Keep this value separate so the protected radius can be tuned without changing
+// the village geometry itself.
+const VILLAGE_PROTECTION_RADIUS = 64;
+// Deterministic world landmark: every player sees the pillager mansion in the
+// same place, while the seeded terrain still makes the surrounding world vary.
+const PILLAGER_MANSION_CENTER = Object.freeze({ x: 230, z: 150 });
+const PILLAGER_MANSION_RADIUS = 24;
 const TICK_RATE = 20;          // simulation ticks per second (like vanilla)
 const TICK_DT = 1 / TICK_RATE;
 const DAY_LENGTH = 24000;      // ticks per day (20 real minutes)
@@ -411,6 +419,17 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const floor = Math.floor;
 const dist2 = (ax, ay, az, bx, by, bz) => (ax-bx)*(ax-bx) + (ay-by)*(ay-by) + (az-bz)*(az-bz);
+function isVillageProtected(x, z) {
+  const dx = Number(x) - VILLAGE_CENTER.x, dz = Number(z) - VILLAGE_CENTER.z;
+  return dx * dx + dz * dz <= VILLAGE_PROTECTION_RADIUS * VILLAGE_PROTECTION_RADIUS;
+}
+let villageProtectionNoticeAt = 0;
+function tellVillageProtection() {
+  const now = performance.now();
+  if (now - villageProtectionNoticeAt < 1000) return;
+  villageProtectionNoticeAt = now;
+  if (typeof HUD !== 'undefined' && HUD.message) HUD.message('A vila inicial e uma area protegida.');
+}
 function isAdminPlayer() { return !!(window.MINEZERA_PLAYER && window.MINEZERA_PLAYER.admin); }
 function hexToRgb(hex) { const n = parseInt(hex.replace('#',''), 16); return [((n>>16)&255)/255, ((n>>8)&255)/255, (n&255)/255]; }
 function rgbToHex(r, g, b) { return '#' + [r,g,b].map(v => clamp(Math.round(v),0,255).toString(16).padStart(2,'0')).join(''); }
@@ -1950,6 +1969,7 @@ const Terrain = {
       }
     }
     this.placeVillage(c);
+    this.placePillagerMansion(c);
     // Structures
     const sr = this.chunkRand(c.cx, c.cz, 'struct');
     if (sr.chance(0.04)) this.placeDungeon(c, sr);
@@ -2039,6 +2059,61 @@ const Terrain = {
     set(x - 2, y + 2, z, B.crafting_table); set(x + 2, y + 2, z, B.furnace);
     set(x - 2, y + 2, z + 2, B.torch); set(x + 2, y + 2, z + 2, B.torch);
   },
+  // Large pillager mansion landmark. It is generated from the same seed in the
+  // same location for every player and can spill safely into neighbouring chunks.
+  placePillagerMansion(c) {
+    if (c.cx !== (PILLAGER_MANSION_CENTER.x >> 4) || c.cz !== (PILLAGER_MANSION_CENTER.z >> 4)) return;
+    const cx = PILLAGER_MANSION_CENTER.x, cz = PILLAGER_MANSION_CENTER.z;
+    const sample = this.sample(cx, cz);
+    if (sample.h <= SEA_LEVEL + 2 || sample.biome === BIO_OCEAN || sample.biome === BIO_DEEP_OCEAN) return;
+    const baseY = sample.h, half = PILLAGER_MANSION_RADIUS;
+    const set = (x, y, z, id, meta = 0) => world.setBlockGen(x, y, z, id, meta);
+    const clear = (x, y, z) => set(x, y, z, AIR);
+
+    // Flatten the footprint so the building does not float or become buried.
+    for (let dx = -half; dx <= half; dx++) for (let dz = -half; dz <= half; dz++) {
+      const x = cx + dx, z = cz + dz, ground = this.sample(x, z).h;
+      if (ground < baseY) for (let y = ground + 1; y <= baseY; y++) set(x, y, z, B.dirt);
+      else if (ground > baseY) for (let y = baseY + 1; y <= ground + 2; y++) clear(x, y, z);
+      set(x, baseY, z, B.stone_bricks);
+      for (let y = baseY + 1; y <= baseY + 16; y++) clear(x, y, z);
+    }
+
+    const wallHeight = 11;
+    for (let y = 1; y <= wallHeight; y++) for (let dx = -half + 1; dx < half; dx++) for (let dz = -half + 1; dz < half; dz++) {
+      const edge = Math.abs(dx) === half - 1 || Math.abs(dz) === half - 1;
+      const x = cx + dx, z = cz + dz;
+      if (!edge) {
+        const window = (y === 3 || y === 7) && ((Math.abs(dx) === 6 && Math.abs(dz) < 6) || (Math.abs(dz) === 6 && Math.abs(dx) < 6));
+        set(x, baseY + y, z, window ? B.glass : AIR);
+        continue;
+      }
+      const frontDoor = dz === -half + 1 && Math.abs(dx) <= 1 && y <= 3;
+      if (frontDoor) { clear(x, baseY + y, z); continue; }
+      const corner = Math.abs(dx) === half - 1 && Math.abs(dz) === half - 1;
+      set(x, baseY + y, z, corner ? B.spruce_log : B.spruce_planks);
+    }
+
+    // Two upper floors and a heavy roof make the landmark recognizable from afar.
+    for (const floorY of [5, 9]) for (let dx = -half + 1; dx < half; dx++) for (let dz = -half + 1; dz < half; dz++) set(cx + dx, baseY + floorY, cz + dz, B.spruce_planks);
+    for (let dx = -half; dx <= half; dx++) for (let dz = -half; dz <= half; dz++) {
+      set(cx + dx, baseY + wallHeight + 1, cz + dz, B.cobblestone);
+      if (Math.abs(dx) === half || Math.abs(dz) === half) set(cx + dx, baseY + wallHeight + 2, cz + dz, B.stone_bricks);
+    }
+    // Four taller corner towers.
+    for (const [tx, tz] of [[-half + 2, -half + 2], [half - 2, -half + 2], [-half + 2, half - 2], [half - 2, half - 2]]) {
+      for (let y = wallHeight + 1; y <= 15; y++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+        const edge = Math.abs(dx) === 2 || Math.abs(dz) === 2;
+        set(cx + tx + dx, baseY + y, cz + tz + dz, edge ? B.spruce_log : AIR);
+      }
+      for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) set(cx + tx + dx, baseY + 16, cz + tz + dz, B.cobblestone);
+    }
+    set(cx, baseY + 1, cz - half + 1, B.oak_door, 0);
+    set(cx, baseY + 2, cz - half + 1, B.oak_door, 1);
+    set(cx, baseY + 2, cz, B.chest, 0);
+    if ((cx >> 4) === c.cx && (cz >> 4) === c.cz) world.setTileGen(cx, baseY + 2, cz, { type: 'chest', slots: this.lootChest(this.chunkRand(c.cx, c.cz, 'mansion-loot'), 'mansion') });
+    for (const [dx, dz] of [[-8, -8], [8, -8], [-8, 8], [8, 8], [0, 0]]) set(cx + dx, baseY + 1, cz + dz, B.torch);
+  },
   // Cobblestone dungeon room with a spawner and a loot chest
   placeDungeon(c, r) {
     const lx = 3 + r.int(10), lz = 3 + r.int(10), y = 8 + r.int(32);
@@ -2072,7 +2147,9 @@ const Terrain = {
   },
   lootChest(r, kind) {
     const slots = new Array(27).fill(null);
-    const pool = kind === 'portal'
+    const pool = kind === 'mansion'
+      ? [['emerald', 2, 8], ['iron_ingot', 2, 8], ['gold_ingot', 1, 5], ['iron_sword', 1, 1], ['arrow', 4, 16], ['bread', 2, 6], ['diamond', 1, 2], ['oak_planks', 4, 16]]
+      : kind === 'portal'
       ? [['flint_and_steel', 1, 1], ['gold_ingot', 1, 4], ['obsidian', 1, 2], ['golden_pickaxe', 1, 1], ['iron_ingot', 1, 3]]
       : [['iron_ingot', 1, 4], ['bread', 1, 2], ['redstone', 1, 4], ['string', 1, 4], ['gunpowder', 1, 4], ['bone', 1, 4], ['diamond', 1, 1], ['apple', 1, 2], ['coal', 2, 6], ['iron_pickaxe', 1, 1], ['bucket', 1, 1], ['wheat_seeds', 2, 4]];
     const n = 3 + r.int(4);
@@ -3400,6 +3477,7 @@ const Interaction = {
   mine(dt) {
     const t = this.target, def = world.getDef(t.x, t.y, t.z);
     if (def.id === AIR) { this.breaking = null; return; }
+    if (isVillageProtected(t.x, t.z)) { this.breaking = null; tellVillageProtection(); return; }
     if (Player.isCreative()) { if (this.useCooldown <= -0.15 || !this.breaking) { this.breakBlock(t.x, t.y, t.z, false); this.breaking = { x: t.x, y: t.y, z: t.z, progress: 0 }; this.useCooldown = 0; } return; }
     if (!this.breaking || this.breaking.x !== t.x || this.breaking.y !== t.y || this.breaking.z !== t.z) this.breaking = { x: t.x, y: t.y, z: t.z, progress: 0 };
     const time = breakTime(def, Player.held());
@@ -3415,8 +3493,14 @@ const Interaction = {
   },
   // Remove a block, spawn particles and drops. Handles special cases (doors, ice, containers).
   breakBlock(x, y, z, drop = true, held = Player.held()) {
+    if (isVillageProtected(x, z)) { tellVillageProtection(); return; }
     const id = world.getBlock(x, y, z); if (id === AIR) return;
     const def = Blocks.byId[id], meta = world.getMeta(x, y, z);
+    if (def.model === 'bed') {
+      const d = HDIRS[meta & 3], isHead = !!(meta & 4);
+      const ox = x + (isHead ? -d[0] : d[0]), oz = z + (isHead ? -d[2] : d[2]);
+      if (isVillageProtected(ox, oz)) { tellVillageProtection(); return; }
+    }
     Particles.blockBreak(x, y, z, def, 14);
     if (drop) for (const d of blockDrops(def, meta, held)) Entities.spawnItem(x + 0.5, y + 0.5, z + 0.5, { name: d.item, count: d.count });
     if (def.id === B.ice && world.getBlock(x, y - 1, z) !== AIR) { world.setBlock(x, y, z, B.water, 0); return; }
@@ -3493,6 +3577,7 @@ const Interaction = {
     let x = t.x, y = t.y, z = t.z;
     if (!tdef.replaceable) { const n = DIRS[t.face]; x += n[0]; y += n[1]; z += n[2]; }
     if (y < 0 || y >= CHUNK_H) return;
+    if (isVillageProtected(x, z)) { tellVillageProtection(); return; }
     const cur = world.getDef(x, y, z);
     if (!cur.replaceable) return;
     if (cur.liquid && def.model !== 'cube' && def.model !== 'box') return;
@@ -3501,6 +3586,7 @@ const Interaction = {
       const dir = this.facingFromPlayer(), d = HDIRS[dir];
       const hx = x + d[0], hz = z + d[2];
       if (y < 0 || y >= CHUNK_H || hx < -TEST_WORLD_HALF || hx > TEST_WORLD_HALF || hz < -TEST_WORLD_HALF || hz > TEST_WORLD_HALF) return;
+      if (isVillageProtected(hx, hz)) { tellVillageProtection(); return; }
       const head = world.getDef(hx, y, hz);
       if (!head.replaceable || head.liquid || !world.getDef(x, y - 1, z).solid || !world.getDef(hx, y - 1, hz).solid) return;
       const boxes = blockBoxes(def, dir);
@@ -4186,6 +4272,7 @@ const Entities = {
       const bx = floor(x) + dx, by = floor(y) + dy, bz = floor(z) + dz;
       const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (d > R * (0.75 + rng.next() * 0.35)) continue;
+      if (isVillageProtected(bx, bz)) continue;
       const id = world.getBlock(bx, by, bz); if (id === AIR) continue;
       const def = Blocks.byId[id];
       if (def.hardness < 0 || def.id === B.obsidian || def.liquid) continue;
@@ -4218,6 +4305,7 @@ const MOB_TYPES = {
   chicken:  { w: 0.2,  h: 0.7,  health: 4,  speed: 1.7, passive: true,  drops: [['chicken', 1, 1], ['feather', 0, 2]], name: 'Chicken' },
   zombie:   { w: 0.3,  h: 1.95, health: 20, speed: 2.4, hostile: true,  damage: 3, drops: [['rotten_flesh', 0, 2]], burns: true, name: 'Zombie' },
   skeleton: { w: 0.3,  h: 1.99, health: 20, speed: 2.6, hostile: true,  ranged: true, drops: [['bone', 0, 2], ['arrow', 0, 2]], burns: true, name: 'Skeleton' },
+  pillager: { w: 0.3,  h: 1.95, health: 24, speed: 2.35, hostile: true, ranged: true, damage: 4, drops: [['emerald', 0, 1], ['arrow', 0, 2]], name: 'Pillager' },
   creeper:  { w: 0.3,  h: 1.7,  health: 20, speed: 2.6, hostile: true,  explodes: true, drops: [['gunpowder', 0, 2]], name: 'Creeper' }
 };
 const SHEEP_COLOR_WEIGHTS = [['white', 81], ['black', 5], ['gray', 5], ['light_gray', 5], ['brown', 3], ['pink', 1]];
@@ -4286,6 +4374,7 @@ const Mobs = {
     else if (type === 'sheep') { eyes('#ffffff', '#000000'); p.rect(2, 6, 4, 2, C('#a89888')); }
     else if (type === 'chicken') { eyes('#000000', '#000000'); p.rect(3, 4, 2, 2, C('#f0c020')); p.rect(3, 6, 2, 1, C('#d02020')); }
     else if (type === 'villager') { eyes('#362b20', '#362b20'); p.rect(3, 4, 2, 3, C('#6b4028')); p.rect(2, 7, 4, 1, C('#6b4028')); }
+    else if (type === 'pillager') { eyes('#241c18', '#241c18'); p.rect(3, 4, 2, 3, C('#4b3024')); p.rect(2, 7, 4, 1, C('#241c18')); }
     const cv = document.createElement('canvas'); cv.width = cv.height = 8;
     cv.getContext('2d').drawImage(p.toCanvas(), 0, 0);
     const tex = new THREE.CanvasTexture(cv); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
@@ -4362,19 +4451,23 @@ const Mobs = {
       parts.head = this.box(g, 8, 8, 8, 0, 22, 0, '#ffffff', { texture: 'creeper', uv: this.cubeUV(0, 0, 8, 8, 8, 64, 32), face: face('#4aa64a') });
       for (const [lx, lz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) parts.legs.push(this.box(g, 4, 6, 4, lx, 6, lz, '#ffffff', { pivotTop: true, texture: 'creeper', uv: this.cubeUV(0, 16, 4, 6, 4, 64, 32) }));
     } else {
-      const skin = t === 'zombie' ? '#3f7a3f' : '#c8c8c8', shirt = t === 'zombie' ? '#2c6a8c' : '#c8c8c8', pants = t === 'zombie' ? '#3a2f8a' : '#c8c8c8';
+      const pillager = t === 'pillager';
+      const skin = t === 'zombie' ? '#3f7a3f' : pillager ? '#8d6957' : '#c8c8c8';
+      const shirt = t === 'zombie' ? '#2c6a8c' : pillager ? '#59616b' : '#c8c8c8';
+      const pants = t === 'zombie' ? '#3a2f8a' : pillager ? '#303843' : '#c8c8c8';
+      const baseColor = pillager ? shirt : '#ffffff';
       const lw = t === 'skeleton' ? 2 : 4;
       const texH = t === 'zombie' ? 64 : 32;
-      parts.body = this.box(g, 8, 12, 4, 0, 18, 0, '#ffffff', { texture: t, uv: this.cubeUV(16, 16, 8, 12, 4, 64, texH) });
-      parts.head = this.box(g, 8, 8, 8, 0, 28, 0, '#ffffff', { texture: t, uv: this.cubeUV(0, 0, 8, 8, 8, 64, texH), face: face(skin) });
+      parts.body = this.box(g, 8, 12, 4, 0, 18, 0, baseColor, { texture: t, uv: this.cubeUV(16, 16, 8, 12, 4, 64, texH) });
+      parts.head = this.box(g, 8, 8, 8, 0, 28, 0, skin, { texture: t, uv: this.cubeUV(0, 0, 8, 8, 8, 64, texH), face: face(skin) });
       const rightLegUV = this.cubeUV(0, 16, lw, 12, lw, 64, texH);
       const leftLegUV = t === 'zombie' ? rightLegUV : this.cubeUV(0, 16, 2, 12, 2, 64, 32);
-      parts.legs.push(this.box(g, lw, 12, lw, -2, 12, 0, '#ffffff', { pivotTop: true, texture: t, uv: leftLegUV }));
-      parts.legs.push(this.box(g, lw, 12, lw, 2, 12, 0, '#ffffff', { pivotTop: true, texture: t, uv: rightLegUV }));
+      parts.legs.push(this.box(g, lw, 12, lw, -2, 12, 0, pants, { pivotTop: true, texture: t, uv: leftLegUV }));
+      parts.legs.push(this.box(g, lw, 12, lw, 2, 12, 0, pants, { pivotTop: true, texture: t, uv: rightLegUV }));
       const rightArmUV = this.cubeUV(40, 16, lw, 12, lw, 64, texH);
       const leftArmUV = t === 'zombie' ? rightArmUV : this.cubeUV(40, 16, 2, 12, 2, 64, 32);
-      parts.arms.push(this.box(g, lw, 12, lw, -6, 24, 0, '#ffffff', { pivotTop: true, texture: t, uv: leftArmUV }));
-      parts.arms.push(this.box(g, lw, 12, lw, 6, 24, 0, '#ffffff', { pivotTop: true, texture: t, uv: rightArmUV }));
+      parts.arms.push(this.box(g, lw, 12, lw, -6, 24, 0, shirt, { pivotTop: true, texture: t, uv: leftArmUV }));
+      parts.arms.push(this.box(g, lw, 12, lw, 6, 24, 0, shirt, { pivotTop: true, texture: t, uv: rightArmUV }));
       if (t === 'zombie') for (const a of parts.arms) a.rotation.x = Math.PI / 2;
       if (t === 'skeleton') {
         parts.arms[0].rotation.x = Math.PI / 2 + 0.18;
@@ -4428,6 +4521,7 @@ const Mobs = {
   },
   spawnTick() {
     const p = player; if (!Game.running) return;
+    if (!Game.pillagersSpawned && Math.hypot(p.x - PILLAGER_MANSION_CENTER.x, p.z - PILLAGER_MANSION_CENTER.z) < 100) Game.spawnPillagers();
     let passive = 0, hostile = 0;
     for (const m of this.list) if (!m.dead) { if (m.def.passive) passive++; else hostile++; }
     const rd = ChunkManager.renderDistance;
@@ -5973,7 +6067,7 @@ const Multiplayer = {
 
 const Game = {
   running: false, paused: false, ready: false, mode: 'survival', cameraMode: 'first', seed: '', scene: null, camera: null, renderer: null, canvas: null,
-  last: 0, tickAccum: 0, autosave: 0, fov: 70, villageVillagersSpawned: false,
+  last: 0, tickAccum: 0, autosave: 0, fov: 70, villageVillagersSpawned: false, pillagersSpawned: false,
   init() {
     this.canvas = $('gl');
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: false, powerPreference: 'high-performance' });
@@ -6000,7 +6094,7 @@ const Game = {
   start(seed, data) {
     this.seed = String(seed);
     world.reset(this.seed); Terrain.init(this.seed); Scheduler.clear(); Entities.clear(); Mobs.clear(); Particles.n = 0;
-    this.villageVillagersSpawned = false;
+    this.villageVillagersSpawned = false; this.pillagersSpawned = false;
     ChunkManager.needsScan = true; ChunkManager.pcx = 1e9; ChunkManager.stats = { generated: 0, meshed: 0, loaded: 0 };
     Sky.time = 1000; Sky.day = 0; Weather.raining = false; Weather.amount = 0;
     if (data) {
@@ -6091,6 +6185,20 @@ const Game = {
       if (m) { m.state = 'wander'; m.stateTimer = 1 + Math.random() * 3; spawned++; }
     }
     this.villageVillagersSpawned = spawned > 0;
+  },
+  spawnPillagers() {
+    if (this.pillagersSpawned || typeof Mobs === 'undefined' || !MOB_TYPES.pillager) return;
+    const cx = PILLAGER_MANSION_CENTER.x, cz = PILLAGER_MANSION_CENTER.z;
+    const baseY = Terrain.sample(cx, cz).h;
+    const spots = [[cx - 8, cz - 8], [cx + 8, cz - 8], [cx - 8, cz + 8], [cx + 8, cz + 8], [cx, cz]];
+    let spawned = 0;
+    for (const [x, z] of spots) {
+      const y = baseY + 1;
+      if (!world.isLoaded(x, z) || !Mobs.canStand(x, y, z, MOB_TYPES.pillager)) continue;
+      const m = Mobs.spawnMob('pillager', x + 0.5, y, z + 0.5);
+      if (m) { m.state = 'wander'; m.stateTimer = 1 + Math.random() * 3; spawned++; }
+    }
+    this.pillagersSpawned = spawned > 0;
   },
   pause() { if (!this.running) return; AccountSync.save(true); this.paused = true; $('pause').classList.remove('hidden'); Input.unlock(); },
   resume() { this.paused = false; $('pause').classList.add('hidden'); if (!player.dead) Input.lock(); },
