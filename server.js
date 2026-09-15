@@ -761,7 +761,7 @@ async function adminItemEditorPage(user, { item = null, message = '' } = {}) {
   return layout(editing ? 'Editar item' : 'Criar item', '<section class="skills item-editor"><a class="link" href="' + htmlEscape(appUrl('/admin?tab=itens')) + '">Voltar aos itens</a><h1>' + (editing ? 'Editar item' : 'Criar novo item') + '</h1>' + (message ? '<div class="alert">' + htmlEscape(message) + '</div>' : '') + '<form method="post" action="' + htmlEscape(appUrl('/admin/items/save')) + '" class="item-editor-form"><input type="hidden" name="csrf_token" value="' + htmlEscape(user.csrf) + '"><input type="hidden" name="original_id" value="' + htmlEscape(item ? item.id : '') + '"><label>ID interno<input name="id" required pattern="[a-z0-9_]+" maxlength="50" value="' + htmlEscape(item ? item.id : '') + '"></label><label>Nome exibido<input name="name" required maxlength="80" value="' + htmlEscape(item ? item.name : '') + '"></label><label>Categoria<select name="category">' + itemCategoryOptions(item && item.category) + '</select></label><label>Tipo<select name="type">' + itemTypeOptions(item && item.type) + '</select></label><label>Tier<input name="tier" maxlength="30" placeholder="Comum, Ferro, Diamante" value="' + htmlEscape(item ? item.tier || '' : '') + '"></label><label>Stack maximo<input name="stack" type="number" min="1" max="999" value="' + Number(item ? item.stack || 64 : 64) + '"></label><label>Dano<input name="damage" type="number" min="0" max="999" step="0.5" value="' + Number(item ? item.damage || 1 : 1) + '"></label><label>Durabilidade<input name="durability" type="number" min="0" max="999999" value="' + Number(item ? item.durability || 0 : 0) + '"></label><label>Velocidade<input name="speed" type="number" min="0" max="999" step="0.1" value="' + Number(item ? item.speed || 1 : 1) + '"></label><label>Fome restaurada<input name="hunger" type="number" min="0" max="20" value="' + Number(item ? item.hunger || 0 : 0) + '"></label><label>Saturacao<input name="saturation" type="number" min="0" max="100" step="0.1" value="' + Number(item ? item.saturation || 0 : 0) + '"></label><label>URL da imagem de preview<input name="preview_url" type="url" placeholder="https://.../item.png" value="' + htmlEscape(item ? item.previewUrl || '' : '') + '"></label><button class="button-primary" type="submit">Salvar item</button></form></section>', 'panel');
 }
 
-async function adminPage(user, { tab = 'servidor', message = '' } = {}) {
+async function adminPage(user, { tab = 'servidor', message = '', sort = 'name', dir = 'asc' } = {}) {
   adminOnly(user);
   const status = await serviceStatus();
   const active = status === 'active';
@@ -805,12 +805,25 @@ async function adminPage(user, { tab = 'servidor', message = '' } = {}) {
   } else if (tab === 'itens') {
     return adminItemsPage(user, { message });
   } else if (tab === 'mobs') {
-    body = `<section class="skills admin-mobs-page">
-      <div class="mobs-heading"><div><span>Configuração do jogo</span><h2>Mobs ativos</h2></div><strong>${ADMIN_MOB_CATALOG.length} configurados</strong></div>
-      <p>Esta lista mostra os mobs disponíveis para geração e uso no mundo. “Ativo” indica que modelo, atributos e comportamento estão habilitados.</p>
-      <div class="mobs-table-wrap"><table class="mobs-table">
-        <thead><tr><th>Mob</th><th>ID</th><th>Tipo</th><th>Vida</th><th>Dano</th><th>Elemental</th><th>Velocidade</th><th>Geração</th><th>Status</th></tr></thead>
-        <tbody>${ADMIN_MOB_CATALOG.map((mob) => `<tr>
+    const validSorts = new Set(['name', 'health', 'damage', 'speed']);
+    sort = validSorts.has(sort) ? sort : 'name';
+    dir = dir === 'desc' ? 'desc' : 'asc';
+    const nextDir = dir === 'asc' ? 'desc' : 'asc';
+    const sortLink = (field, label) => {
+      const marker = sort === field ? (dir === 'asc' ? ' ▲' : ' ▼') : '';
+      return `<a class="mob-sort" href="${htmlEscape(appUrl(`/admin?tab=mobs&sort=${field}&dir=${sort === field ? nextDir : 'asc'}`))}">${label}${marker}</a>`;
+    };
+    const compareMobs = (a, b) => {
+      const av = sort === 'name' ? a.name : Number(a[sort] || 0);
+      const bv = sort === 'name' ? b.name : Number(b[sort] || 0);
+      const result = typeof av === 'string' ? av.localeCompare(bv, 'pt-BR') : av - bv;
+      return (dir === 'asc' ? result : -result) || a.name.localeCompare(b.name, 'pt-BR');
+    };
+    const aggressive = ADMIN_MOB_CATALOG.filter((mob) => Number(mob.damage || 0) > 0).sort(compareMobs);
+    const passive = ADMIN_MOB_CATALOG.filter((mob) => Number(mob.damage || 0) <= 0).sort(compareMobs);
+    const mobTable = (title, mobs) => `<section class="mob-group"><h3>${title} <span>${mobs.length}</span></h3><div class="mobs-table-wrap"><table class="mobs-table">
+        <thead><tr><th>Mob</th><th>ID</th><th>Tipo</th><th>${sortLink('health', 'Vida')}</th><th>${sortLink('damage', 'Dano')}</th><th>Elemental</th><th>${sortLink('speed', 'Velocidade')}</th><th>Geração</th><th>Status</th></tr></thead>
+        <tbody>${mobs.map((mob) => `<tr>
           <td><strong>${htmlEscape(mob.name)}</strong></td>
           <td><code>${htmlEscape(mob.id)}</code></td>
           <td>${htmlEscape(mob.kind)}</td>
@@ -821,7 +834,12 @@ async function adminPage(user, { tab = 'servidor', message = '' } = {}) {
           <td>${htmlEscape(mob.spawn)}</td>
           <td><span class="mob-status active">Ativo</span></td>
         </tr>`).join('')}</tbody>
-      </table></div>
+      </table></div></section>`;
+    body = `<section class="skills admin-mobs-page">
+      <div class="mobs-heading"><div><span>Configuração do jogo</span><h2>Mobs ativos</h2></div><strong>${ADMIN_MOB_CATALOG.length} configurados</strong></div>
+      <p>Mob com dano maior que zero é considerado agressivo. Clique em Vida, Dano ou Velocidade para ordenar; clique novamente para inverter.</p>
+      ${mobTable('Agressivos', aggressive)}
+      ${mobTable('Passivos', passive)}
     </section>`;
   } else if (tab === 'itens-legado') {
     const accounts = await query('SELECT p.conta_id, c.login, p.nome FROM personagens p INNER JOIN contas c ON c.id = p.conta_id ORDER BY c.login');
@@ -1399,7 +1417,11 @@ async function route(req, res) {
   if (method === 'GET' && pathname === '/admin') {
     const user = await currentUser(req);
     if (!user) return redirect(res, '/');
-    return sendHtml(res, await adminPage(user, { tab: String(url.searchParams.get('tab') || 'servidor') }));
+    return sendHtml(res, await adminPage(user, {
+      tab: String(url.searchParams.get('tab') || 'servidor'),
+      sort: String(url.searchParams.get('sort') || 'name'),
+      dir: String(url.searchParams.get('dir') || 'asc')
+    }));
   }
   if (method === 'GET' && pathname === '/admin/item') {
     const user = await currentUser(req);
