@@ -37,6 +37,7 @@ echo json_encode([
         'pitch' => (float) $user['pitch'],
         'inventario' => $user['inventory_json'] !== null ? json_decode((string) $user['inventory_json'], true) : null,
         'hotbar' => (int) $user['hotbar'],
+        'skin' => (string) $user['skin_id'],
         'skills' => [
             'lenhador' => (int) $user['skill_lenhador'],
             'cooking' => (int) $user['skill_cooking'],

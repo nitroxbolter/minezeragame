@@ -86,6 +86,7 @@ CREATE TABLE `personagens` (
   `pitch` double NOT NULL DEFAULT 0,
   `inventory_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`inventory_json`)),
   `hotbar` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `skin_id` varchar(20) NOT NULL DEFAULT 'security',
   `skill_lenhador` int(10) UNSIGNED NOT NULL DEFAULT 1,
   `skill_cooking` int(10) UNSIGNED NOT NULL DEFAULT 1,
   `skill_mining` int(10) UNSIGNED NOT NULL DEFAULT 1,

@@ -34,6 +34,7 @@ function current_user(): ?array
             p.pitch,
             p.inventory_json,
             p.hotbar,
+            p.skin_id,
             p.skill_lenhador,
             p.skill_cooking,
             p.skill_mining,
@@ -105,4 +106,39 @@ function valid_login(string $login): bool
 function valid_character_name(string $name): bool
 {
     return (bool) preg_match('/^[a-zA-Z0-9_ ]{3,40}$/', $name);
+}
+
+function player_skins(): array
+{
+    return [
+        'security' => 'security-guard-green.png',
+        'pearson' => 'swag-24334585.png',
+        'sayori' => 'sayori-ddlc-eye-tweak-2.png',
+        'clouds' => 'clouds-24335191.png',
+    ];
+}
+
+function valid_skin_id(string $skinId): bool
+{
+    return array_key_exists($skinId, player_skins());
+}
+
+function skin_asset(string $skinId, string $prefix = ''): string
+{
+    $skins = player_skins();
+    $file = $skins[$skinId] ?? $skins['security'];
+    return $prefix . 'assets/' . $file;
+}
+
+function top_players(int $limit = 5): array
+{
+    $limit = max(1, min(5, $limit));
+    $stmt = db()->query(
+        'SELECT nome, nivel, exp, skin_id
+         FROM personagens
+         ORDER BY nivel DESC, exp DESC, kills DESC, atualizado_em ASC
+         LIMIT ' . $limit
+    );
+
+    return $stmt->fetchAll();
 }

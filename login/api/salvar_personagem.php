@@ -32,6 +32,10 @@ $z = isset($payload['z']) ? (float) $payload['z'] : $user['pos_z'];
 $yaw = isset($payload['yaw']) ? (float) $payload['yaw'] : (float) $user['yaw'];
 $pitch = isset($payload['pitch']) ? (float) $payload['pitch'] : (float) $user['pitch'];
 $hotbar = max(0, min(8, (int) ($payload['hotbar'] ?? $user['hotbar'])));
+$skinId = (string) ($payload['skin'] ?? $user['skin_id']);
+if (!valid_skin_id($skinId)) {
+    $skinId = valid_skin_id((string) $user['skin_id']) ? (string) $user['skin_id'] : 'security';
+}
 $inventory = $payload['inventory'] ?? null;
 $inventoryJson = null;
 
@@ -54,6 +58,7 @@ $stmt = db()->prepare(
          pitch = ?,
          inventory_json = COALESCE(?, inventory_json),
          hotbar = ?,
+         skin_id = ?,
          kills = GREATEST(kills, ?)
      WHERE conta_id = ?'
 );
@@ -70,6 +75,7 @@ $stmt->execute([
     $pitch,
     $inventoryJson,
     $hotbar,
+    $skinId,
     $kills,
     (int) $user['conta_id'],
 ]);

@@ -22,6 +22,7 @@ body {
 }
 
 .auth-card,
+.ranking-card,
 .panel-heading,
 .stats-grid article,
 .skills {
@@ -41,6 +42,127 @@ body {
 .auth-card {
     width: min(420px, 100%);
     padding: 28px;
+}
+
+.login-home {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(300px, 420px) minmax(320px, 1fr);
+    gap: 18px;
+    align-items: stretch;
+}
+
+.login-home .auth-card {
+    width: 100%;
+}
+
+.ranking-card {
+    min-height: 100%;
+    padding: 24px;
+}
+
+.ranking-heading span {
+    color: #f2d27a;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.ranking-heading h2 {
+    margin: 6px 0 18px;
+    font-size: 24px;
+}
+
+.ranking-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ranking-list li {
+    display: grid;
+    grid-template-columns: 34px 48px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    min-height: 62px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 7px;
+    padding: 7px 12px;
+    background: rgba(255, 255, 255, 0.055);
+}
+
+.ranking-list li:first-child {
+    border-color: rgba(242, 210, 122, 0.45);
+    background: linear-gradient(90deg, rgba(242, 210, 122, 0.14), rgba(255, 255, 255, 0.045));
+}
+
+.ranking-position {
+    color: #a9b8ca;
+    font-size: 15px;
+    text-align: center;
+}
+
+.ranking-list li:first-child .ranking-position { color: #ffd75e; }
+.ranking-list li:nth-child(2) .ranking-position { color: #d9e1e8; }
+.ranking-list li:nth-child(3) .ranking-position { color: #d7955b; }
+
+.ranking-skin {
+    position: relative;
+    display: block;
+    width: 48px;
+    height: 48px;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    background-color: #17212b;
+    background-image: var(--player-skin);
+    background-repeat: no-repeat;
+    background-position: -48px -48px;
+    background-size: 384px 384px;
+    image-rendering: pixelated;
+}
+
+.ranking-skin::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--player-skin);
+    background-repeat: no-repeat;
+    background-position: -240px -48px;
+    background-size: 384px 384px;
+    image-rendering: pixelated;
+}
+
+.ranking-player {
+    min-width: 0;
+}
+
+.ranking-player strong,
+.ranking-player small {
+    display: block;
+}
+
+.ranking-player strong {
+    overflow: hidden;
+    color: #f8fbff;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ranking-player small {
+    margin-top: 4px;
+    color: #78e08f;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.ranking-empty {
+    margin: 24px 0 0;
+    text-align: center;
 }
 
 .auth-home {
@@ -460,7 +582,8 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
-    .auth-home {
+    .auth-home,
+    .login-home {
         grid-template-columns: 1fr;
     }
 

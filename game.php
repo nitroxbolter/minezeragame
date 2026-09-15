@@ -23,6 +23,7 @@ $bootstrap = '<script>window.MINEZERA_PLAYER = ' . json_encode([
     'pitch' => (float) $user['pitch'],
     'inventory' => $user['inventory_json'] !== null ? json_decode((string) $user['inventory_json'], true) : null,
     'hotbar' => (int) $user['hotbar'],
+    'skin' => (string) $user['skin_id'],
     'kills' => (int) $user['kills'],
 ], JSON_UNESCAPED_UNICODE) . ';</script>';
 

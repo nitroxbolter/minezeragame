@@ -86,6 +86,7 @@ function migrate_database(PDO $pdo): void
         'pitch' => 'ALTER TABLE personagens ADD COLUMN pitch DOUBLE NOT NULL DEFAULT 0 AFTER yaw',
         'inventory_json' => 'ALTER TABLE personagens ADD COLUMN inventory_json JSON NULL DEFAULT NULL AFTER pitch',
         'hotbar' => 'ALTER TABLE personagens ADD COLUMN hotbar TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER inventory_json',
+        'skin_id' => "ALTER TABLE personagens ADD COLUMN skin_id VARCHAR(20) NOT NULL DEFAULT 'security' AFTER hotbar",
     ];
 
     foreach ($columns as $column => $sql) {
