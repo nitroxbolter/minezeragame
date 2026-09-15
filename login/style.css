@@ -222,7 +222,8 @@ td {
 }
 
 .item-page-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
-.item-filter { display: inline-flex; align-items: center; gap: 8px; color: #dce8f4; }
+.item-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0; color: #dce8f4; }
+.item-filter input { min-width: 240px; }
 .item-filter select { min-width: 170px; }
 .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
 .item-card { display: grid; justify-items: center; gap: 8px; min-height: 118px; padding: 12px 8px; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; background: rgba(255,255,255,.05); color: #f4f7fb; text-decoration: none; text-align: center; }
