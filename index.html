@@ -1504,6 +1504,7 @@ const ENTITY_TEXTURE_PATHS = {
   villager: ['assets/minecraft/textures/entity/villager/villager.png'],
   pillager: ['assets/minecraft/textures/entity/illager/pillager.png'],
   zombie_villager: ['assets/minecraft/textures/entity/zombie_villager/zombie_villager.png'],
+  wither_skeleton: ['assets/minecraft/textures/entity/skeleton/wither_skeleton.png'],
   husk: ['assets/minecraft/textures/entity/zombie/husk.png'],
   drowned: ['assets/minecraft/textures/entity/zombie/drowned.png'],
   witch: ['assets/minecraft/textures/entity/witch/witch.png'],
@@ -1523,7 +1524,14 @@ const ENTITY_TEXTURE_PATHS = {
   iron_golem: ['assets/minecraft/textures/entity/iron_golem/iron_golem.png'],
   wandering_trader: ['assets/minecraft/textures/entity/wandering_trader/wandering_trader.png'],
   goat: ['assets/minecraft/textures/entity/goat/goat.png'],
-  fox: ['assets/minecraft/textures/entity/fox/fox.png']
+  fox: ['assets/minecraft/textures/entity/fox/fox.png'],
+  wolf: ['assets/minecraft/textures/entity/wolf/wolf_woods.png'],
+  piglin: ['assets/minecraft/textures/entity/piglin/piglin.png'],
+  ravager: ['assets/minecraft/textures/entity/illager/ravager.png'],
+  vex: ['assets/minecraft/textures/entity/illager/vex.png'],
+  illusioner: ['assets/minecraft/textures/entity/illager/illusioner.png'],
+  evoker: ['assets/minecraft/textures/entity/illager/evoker.png'],
+  vindicator: ['assets/minecraft/textures/entity/illager/vindicator.png']
 };
 
 const ResourcePack = {
@@ -4362,7 +4370,14 @@ const MOB_TYPES = {
   iron_golem:      { w: 0.7, h: 2.7, health: 100, speed: 1.2, passive: true, damage: 15, drops: [], name: 'Iron Golem' },
   wandering_trader:{ w: 0.3, h: 1.9, health: 20, speed: 1.25, passive: true, damage: 0, drops: [], name: 'Wandering Trader' },
   goat:            { w: 0.45, h: 1.3, health: 19, speed: 2.0, passive: true, damage: 2, drops: [], name: 'Goat' },
-  fox:             { w: 0.35, h: 0.8, health: 10, speed: 2.4, passive: true, damage: 2, drops: [], name: 'Fox' }
+  fox:             { w: 0.35, h: 0.8, health: 10, speed: 2.4, passive: true, damage: 2, drops: [], name: 'Fox' },
+  wither_skeleton: { w: 0.3, h: 2.4, health: 20, speed: 2.8, hostile: true, damage: 8, drops: [['bone', 0, 2]], name: 'Wither Skeleton' },
+  piglin:          { w: 0.3, h: 1.95, health: 16, speed: 2.4, hostile: true, damage: 5, drops: [['gold_nugget', 0, 2]], name: 'Piglin' },
+  ravager:         { w: 0.9, h: 2.2, health: 100, speed: 1.5, hostile: true, damage: 12, drops: [], name: 'Ravager' },
+  vex:             { w: 0.3, h: 0.8, health: 14, speed: 3.5, hostile: true, damage: 5, drops: [], name: 'Vex' },
+  illusioner:      { w: 0.3, h: 1.95, health: 32, speed: 2.5, hostile: true, ranged: true, damage: 4, drops: [], name: 'Illusioner' },
+  evoker:          { w: 0.3, h: 1.95, health: 24, speed: 2.0, hostile: true, ranged: true, damage: 6, drops: [], name: 'Evoker' },
+  vindicator:      { w: 0.3, h: 1.95, health: 24, speed: 2.5, hostile: true, damage: 7, drops: [], name: 'Vindicator' }
 };
 const SHEEP_COLOR_WEIGHTS = [['white', 81], ['black', 5], ['gray', 5], ['light_gray', 5], ['brown', 3], ['pink', 1]];
 
@@ -4458,6 +4473,48 @@ const Mobs = {
   buildSpecialModel(m, g, parts, face) {
     const t = m.type;
     const textured = (name, w, h, d, x, y, z, texW = 64, texH = 32, color = '#ffffff') => this.box(g, w, h, d, x, y, z, color, { texture: name, uv: this.cubeUV(0, 0, w, h, d, texW, texH) });
+    if (t === 'ravager') {
+      parts.body = textured('ravager', 20, 16, 24, 0, 16, 0, 128, 128);
+      parts.head = textured('ravager', 14, 12, 14, 0, 22, -15, 128, 128);
+      for (const sx of [-1, 1]) {
+        parts.legs.push(this.box(g, 5, 12, 5, sx * 7, 10, -7, '#ffffff', { pivotTop: true, texture: 'ravager', uv: this.cubeUV(0, 0, 5, 12, 5, 128, 128) }));
+        parts.legs.push(this.box(g, 5, 12, 5, sx * 7, 10, 7, '#ffffff', { pivotTop: true, texture: 'ravager', uv: this.cubeUV(0, 0, 5, 12, 5, 128, 128) }));
+      }
+      for (const sx of [-1, 1]) {
+        const horn = this.box(g, 3, 9, 3, sx * 9, 27, -16, '#6b4934', { texture: 'ravager', uv: this.cubeUV(0, 0, 3, 9, 3, 128, 128) });
+        horn.rotation.z = sx * 0.35;
+      }
+      return true;
+    }
+    if (t === 'vex') {
+      parts.body = textured('vex', 5, 8, 4, 0, 9, 0, 32, 32);
+      parts.head = textured('vex', 5, 5, 5, 0, 15, -3, 32, 32);
+      for (const sx of [-1, 1]) {
+        const wing = this.box(g, 1, 7, 9, sx * 5, 12, 1, '#ffffff', { texture: 'vex', uv: this.cubeUV(0, 0, 1, 7, 9, 32, 32) });
+        wing.rotation.z = sx * 0.2;
+        parts.arms.push(wing);
+      }
+      return true;
+    }
+    if (t === 'witch') {
+      parts.body = textured('witch', 8, 12, 4, 0, 18, 0, 64, 128);
+      parts.head = textured('witch', 8, 8, 8, 0, 28, 0, 64, 128);
+      const brim = this.box(g, 12, 1, 12, 0, 37, 0, '#4b3024', { texture: 'witch', uv: this.cubeUV(0, 0, 12, 1, 12, 64, 128) });
+      const hat = this.box(g, 7, 8, 7, 0, 41, 0, '#4b3024', { texture: 'witch', uv: this.cubeUV(0, 0, 7, 8, 7, 64, 128) });
+      hat.rotation.z = -0.12;
+      for (const sx of [-1, 1]) parts.arms.push(this.box(g, 3, 11, 3, sx * 6, 21, 0, '#ffffff', { pivotTop: true, texture: 'witch', uv: this.cubeUV(0, 0, 3, 11, 3, 64, 128) }));
+      return true;
+    }
+    if (t === 'wolf') {
+      parts.body = textured('wolf', 8, 8, 12, 0, 10, 0, 64, 32);
+      parts.body.userData.mesh.rotation.x = Math.PI / 2;
+      parts.head = textured('wolf', 6, 6, 6, 0, 15, -9, 64, 32);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.legs.push(this.box(g, 3, 7, 3, sx * 3, 7, sz * 4, '#ffffff', { pivotTop: true, texture: 'wolf', uv: this.cubeUV(0, 0, 3, 7, 3, 64, 32) }));
+      const tail = this.box(g, 3, 7, 3, 0, 12, 8, '#ffffff', { pivotTop: true, texture: 'wolf', uv: this.cubeUV(0, 0, 3, 7, 3, 64, 32) });
+      tail.rotation.x = -0.55;
+      parts.arms.push(tail);
+      return true;
+    }
     if (t === 'spider' || t === 'cave_spider') {
       const tex = t === 'spider' ? 'spider' : 'cave_spider';
       parts.body = textured(tex, 12, 8, 16, 0, 8, 0);
@@ -4578,9 +4635,10 @@ const Mobs = {
       this.box(parts.head, 4, 2, 2, 0, -1, -2.5, '#ffffff', { texture: 'chicken', uv: this.cubeUV(14, 0, 4, 2, 2, 64, 32) });
       for (const lx of [-1.5, 1.5]) parts.legs.push(this.box(g, 3, 5, 3, lx, 5, 0, '#ffffff', { pivotTop: true, texture: 'chicken', uv: this.cubeUV(26, 0, 3, 5, 3, 64, 32) }));
       for (const lx of [-3.5, 3.5]) parts.arms.push(this.box(g, 1, 4, 6, lx, 10, 0, '#ffffff', { pivotTop: true, texture: 'chicken', uv: this.cubeUV(24, 13, 1, 4, 6, 64, 32) }));
-    } else if (t === 'pillager') {
-      const tex = { texture: 'pillager' };
-      const pillagerFallback = this.entityTexture('pillager') ? '#ffffff' : '#59616b';
+    } else if (['pillager', 'vindicator', 'evoker', 'illusioner'].includes(t)) {
+      const illagerTexture = t;
+      const tex = { texture: illagerTexture };
+      const pillagerFallback = this.entityTexture(illagerTexture) ? '#ffffff' : '#59616b';
       // Illagers use the 64x64 humanoid layout from the 26.2 resource pack.
       parts.legs.push(this.box(g, 4, 12, 4, -2, 12, 0, pillagerFallback, { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
       parts.legs.push(this.box(g, 4, 12, 4, 2, 12, 0, pillagerFallback, { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
@@ -4620,29 +4678,35 @@ const Mobs = {
     } else {
       const pillager = t === 'pillager';
       const textureType = t;
-      const skin = t === 'zombie' || t === 'zombie_villager' || t === 'husk' || t === 'drowned' ? '#3f7a3f' : pillager ? '#8d6957' : '#c8c8c8';
-      const shirt = t === 'zombie' || t === 'zombie_villager' || t === 'husk' || t === 'drowned' ? '#2c6a8c' : pillager ? '#59616b' : '#c8c8c8';
-      const pants = t === 'zombie' ? '#3a2f8a' : pillager ? '#303843' : '#c8c8c8';
+      const zombieModel = ['zombie', 'zombie_villager', 'husk', 'drowned'].includes(t);
+      const skin = zombieModel ? '#3f7a3f' : t === 'piglin' ? '#b86f55' : pillager ? '#8d6957' : '#c8c8c8';
+      const shirt = zombieModel ? '#2c6a8c' : t === 'piglin' ? '#6b2632' : pillager ? '#59616b' : '#c8c8c8';
+      const pants = zombieModel ? '#3a2f8a' : pillager ? '#303843' : '#c8c8c8';
       const baseColor = pillager ? shirt : '#ffffff';
-      const lw = t === 'skeleton' ? 2 : 4;
-      const texH = ['zombie', 'zombie_villager', 'husk', 'drowned', 'enderman'].includes(textureType) ? 64 : 32;
+      const lw = ['skeleton', 'wither_skeleton'].includes(t) ? 2 : 4;
+      const texH = ['zombie', 'zombie_villager', 'husk', 'drowned', 'enderman', 'piglin'].includes(textureType) ? 64 : 32;
       parts.body = this.box(g, 8, 12, 4, 0, 18, 0, baseColor, { texture: textureType, uv: this.cubeUV(16, 16, 8, 12, 4, 64, texH) });
       parts.head = this.box(g, 8, 8, 8, 0, 28, 0, skin, { texture: textureType, uv: this.cubeUV(0, 0, 8, 8, 8, 64, texH), face: face(skin) });
       const rightLegUV = this.cubeUV(0, 16, lw, 12, lw, 64, texH);
-      const leftLegUV = t === 'zombie' ? rightLegUV : this.cubeUV(0, 16, 2, 12, 2, 64, 32);
+      const leftLegUV = zombieModel ? rightLegUV : this.cubeUV(0, 16, 2, 12, 2, 64, texH);
       parts.legs.push(this.box(g, lw, 12, lw, -2, 12, 0, pants, { pivotTop: true, texture: textureType, uv: leftLegUV }));
       parts.legs.push(this.box(g, lw, 12, lw, 2, 12, 0, pants, { pivotTop: true, texture: textureType, uv: rightLegUV }));
       const rightArmUV = this.cubeUV(40, 16, lw, 12, lw, 64, texH);
-      const leftArmUV = t === 'zombie' ? rightArmUV : this.cubeUV(40, 16, 2, 12, 2, 64, 32);
+      const leftArmUV = zombieModel ? rightArmUV : this.cubeUV(40, 16, 2, 12, 2, 64, texH);
       parts.arms.push(this.box(g, lw, 12, lw, -6, 24, 0, shirt, { pivotTop: true, texture: textureType, uv: leftArmUV }));
       parts.arms.push(this.box(g, lw, 12, lw, 6, 24, 0, shirt, { pivotTop: true, texture: textureType, uv: rightArmUV }));
-      if (t === 'zombie') for (const a of parts.arms) a.rotation.x = Math.PI / 2;
+      if (zombieModel) for (const a of parts.arms) a.rotation.x = Math.PI / 2;
       if (t === 'skeleton') {
         parts.arms[0].rotation.x = Math.PI / 2 + 0.18;
         parts.arms[1].rotation.x = Math.PI / 2 - 0.3;
         const bow = this.box(parts.arms[1], 1, 10, 2, 0, -8, 0, '#8a6a3a');
         bow.rotation.x = -parts.arms[1].rotation.x;
       }
+      if (t === 'piglin') {
+        this.box(parts.head, 2, 3, 1, -5, -1, 0, '#b86f55', { texture: textureType, uv: this.cubeUV(0, 0, 2, 3, 1, 64, texH) });
+        this.box(parts.head, 2, 3, 1, 5, -1, 0, '#b86f55', { texture: textureType, uv: this.cubeUV(0, 0, 2, 3, 1, 64, texH) });
+      }
+      if (t === 'enderman') g.scale.set(1.05, 1.42, 1.05);
     }
     // Health bar sprite
     const cv = document.createElement('canvas'); cv.width = 64; cv.height = 16;

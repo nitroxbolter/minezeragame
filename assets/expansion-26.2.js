@@ -241,7 +241,7 @@
   });
   const originalBuildModel = Mobs.buildModel.bind(Mobs);
   Mobs.buildModel = function(m) {
-    const real = m.type, alias = { pillager: 'skeleton', wolf: 'pig', cat: 'pig', horse: 'cow', bee: 'chicken', boat: 'pig' }[real];
+    const real = m.type, alias = { pillager: 'skeleton', cat: 'pig', horse: 'cow', bee: 'chicken', boat: 'pig' }[real];
     if (alias) m.type = alias; originalBuildModel(m); m.type = real;
     const tint = { pillager: 0x778888, wolf: 0xaaa69c, cat: 0xd18b47, horse: 0x7a4b28, bee: 0xffc928, boat: 0x8d5a2b }[real];
     if (tint) m.mesh.traverse(o => { if (o.isMesh) { const mats = Array.isArray(o.material) ? o.material : [o.material]; for (const mt of mats) if (!mt.map) mt.color.setHex(tint); o.userData.baseColors = mats.map(mt => mt.color.clone()); } });

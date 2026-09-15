@@ -4,7 +4,8 @@ const MOB_TYPES = Object.freeze([
   'pig', 'cow', 'sheep', 'chicken', 'zombie', 'zombie_villager', 'husk', 'drowned',
   'skeleton', 'pillager', 'creeper', 'witch', 'enderman', 'blaze', 'ghast', 'spider',
   'cave_spider', 'slime', 'magma_cube', 'silverfish', 'guardian', 'phantom', 'polar_bear',
-  'rabbit', 'bat', 'iron_golem', 'wandering_trader', 'goat', 'fox',
+  'rabbit', 'bat', 'iron_golem', 'wandering_trader', 'goat', 'fox', 'wither_skeleton', 'piglin',
+  'ravager', 'vex', 'illusioner', 'evoker', 'vindicator',
   'villager', 'wolf', 'cat', 'horse', 'bee'
 ]);
 const MOB_ALIASES = Object.freeze({
@@ -13,7 +14,9 @@ const MOB_ALIASES = Object.freeze({
   esqueleto: 'skeleton', aranha: 'spider', aranha_de_caverna: 'cave_spider', bruxa: 'witch',
   morcego: 'bat', coelho: 'rabbit', cabra: 'goat', raposa: 'fox', aldeao: 'villager',
   aldeão: 'villager', lobo: 'wolf', gato: 'cat', cavalo: 'horse', abelha: 'bee',
-  guardiao: 'guardian', guardião: 'guardian', urso_polar: 'polar_bear', golem: 'iron_golem'
+  guardiao: 'guardian', guardião: 'guardian', urso_polar: 'polar_bear', golem: 'iron_golem',
+  esqueleto_wither: 'wither_skeleton', esqueleto_com_wither: 'wither_skeleton', devastador: 'ravager',
+  ilusionista: 'illusioner', evocador: 'evoker', vindicador: 'vindicator'
 });
 const TIME_VALUES = Object.freeze({ day: 1000, noon: 6000, night: 13000, midnight: 18000 });
 

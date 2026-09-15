@@ -95,7 +95,14 @@ const ADMIN_MOB_CATALOG = [
   { id: 'iron_golem', name: 'Golem de ferro', kind: 'Neutro', health: 100, damage: 15, element: 'Nenhum', speed: 1.2, spawn: 'Vila central' },
   { id: 'wandering_trader', name: 'Comerciante errante', kind: 'Passivo / trading', health: 20, damage: 0, element: 'Nenhum', speed: 1.25, spawn: 'Geração natural' },
   { id: 'goat', name: 'Cabra', kind: 'Passivo', health: 19, damage: 2, element: 'Nenhum', speed: 2, spawn: 'Montanhas' },
-  { id: 'fox', name: 'Raposa', kind: 'Passivo', health: 10, damage: 2, element: 'Nenhum', speed: 2.4, spawn: 'Taiga' }
+  { id: 'fox', name: 'Raposa', kind: 'Passivo', health: 10, damage: 2, element: 'Nenhum', speed: 2.4, spawn: 'Taiga' },
+  { id: 'wither_skeleton', name: 'Esqueleto Wither', kind: 'Hostil', health: 20, damage: 8, element: 'Nenhum', speed: 2.8, spawn: 'Nether' },
+  { id: 'piglin', name: 'Piglin', kind: 'Hostil', health: 16, damage: 5, element: 'Nenhum', speed: 2.4, spawn: 'Nether' },
+  { id: 'ravager', name: 'Ravager', kind: 'Hostil', health: 100, damage: 12, element: 'Nenhum', speed: 1.5, spawn: 'Invasão' },
+  { id: 'vex', name: 'Vex', kind: 'Hostil voador', health: 14, damage: 5, element: 'Nenhum', speed: 3.5, spawn: 'Evocador' },
+  { id: 'illusioner', name: 'Illusioner', kind: 'Hostil à distância', health: 32, damage: 4, element: 'Nenhum', speed: 2.5, spawn: 'Invasão' },
+  { id: 'evoker', name: 'Evoker', kind: 'Hostil à distância', health: 24, damage: 6, element: 'Nenhum', speed: 2, spawn: 'Invasão' },
+  { id: 'vindicator', name: 'Vindicator', kind: 'Hostil', health: 24, damage: 7, element: 'Nenhum', speed: 2.5, spawn: 'Invasão' }
 ];
 
 let pool;
