@@ -4455,10 +4455,104 @@ const Mobs = {
     pivot.userData.mesh = mesh;
     return pivot;
   },
+  buildSpecialModel(m, g, parts, face) {
+    const t = m.type;
+    const textured = (name, w, h, d, x, y, z, texW = 64, texH = 32, color = '#ffffff') => this.box(g, w, h, d, x, y, z, color, { texture: name, uv: this.cubeUV(0, 0, w, h, d, texW, texH) });
+    if (t === 'spider' || t === 'cave_spider') {
+      const tex = t === 'spider' ? 'spider' : 'cave_spider';
+      parts.body = textured(tex, 12, 8, 16, 0, 8, 0);
+      parts.head = textured(tex, 8, 8, 8, 0, 11, -9);
+      for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        for (const side of [-1, 1]) {
+          const leg = this.box(g, 2, 10, 2, sx * 5, 7, sz * 4, '#ffffff', { pivotTop: true, texture: tex, uv: this.cubeUV(0, 0, 2, 10, 2, 64, 32) });
+          leg.rotation.z = side * sx * 0.45;
+          leg.rotation.x = -sz * 0.35;
+          parts.legs.push(leg);
+        }
+      }
+      if (t === 'cave_spider') g.scale.set(0.72, 0.72, 0.72);
+      return true;
+    }
+    if (t === 'slime' || t === 'magma_cube') {
+      const tex = t === 'slime' ? 'slime' : 'magma_cube';
+      parts.body = textured(tex, 12, 12, 12, 0, 6, 0, 64, 32);
+      parts.head = parts.body;
+      g.scale.set(0.9, 0.9, 0.9);
+      return true;
+    }
+    if (t === 'blaze') {
+      parts.body = textured('blaze', 8, 10, 8, 0, 12, 0, 64, 32, '#e89a22');
+      parts.head = parts.body;
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        const rod = this.box(g, 2, 10, 2, Math.cos(a) * 7, 12 + (i % 2) * 3, Math.sin(a) * 7, '#e89a22', { pivotTop: true, texture: 'blaze', uv: this.cubeUV(0, 0, 2, 10, 2, 64, 32) });
+        rod.rotation.z = Math.sin(a) * 0.25;
+        rod.rotation.x = Math.cos(a) * 0.25;
+        parts.arms.push(rod);
+      }
+      return true;
+    }
+    if (t === 'ghast') {
+      parts.body = textured('ghast', 16, 14, 16, 0, 16, 0, 64, 32);
+      parts.head = parts.body;
+      for (let i = 0; i < 9; i++) parts.legs.push(this.box(g, 2, 8 + (i % 3) * 2, 2, -6 + (i % 5) * 3, 6, -5 + (i % 2) * 10, '#ffffff', { pivotTop: true, texture: 'ghast', uv: this.cubeUV(0, 0, 2, 8, 2, 64, 32) }));
+      return true;
+    }
+    if (t === 'guardian') {
+      parts.body = textured('guardian', 12, 12, 12, 0, 12, 0, 64, 64);
+      parts.head = parts.body;
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        const spike = this.box(g, 2, 7, 2, Math.cos(a) * 7, 12, Math.sin(a) * 7, '#d58b43', { pivotTop: true, texture: 'guardian', uv: this.cubeUV(0, 0, 2, 7, 2, 64, 64) });
+        spike.rotation.z = Math.sin(a) * 0.8;
+        spike.rotation.x = Math.cos(a) * 0.8;
+      }
+      return true;
+    }
+    if (t === 'phantom') {
+      parts.body = textured('phantom', 8, 4, 12, 0, 12, 0, 64, 32);
+      parts.head = textured('phantom', 6, 5, 6, 0, 12, -8, 64, 32);
+      for (const sx of [-1, 1]) {
+        const wing = this.box(g, 2, 4, 16, sx * 7, 12, 2, '#ffffff', { texture: 'phantom', uv: this.cubeUV(0, 0, 2, 4, 16, 64, 32) });
+        wing.rotation.z = sx * 0.15;
+        parts.arms.push(wing);
+      }
+      return true;
+    }
+    if (t === 'polar_bear') {
+      parts.body = textured('polar_bear', 14, 14, 20, 0, 14, 0, 64, 64);
+      parts.body.userData.mesh.rotation.x = Math.PI / 2;
+      parts.head = textured('polar_bear', 10, 10, 10, 0, 21, -12, 64, 64);
+      for (const [sx, sz] of [[-5, -6], [5, -6], [-5, 6], [5, 6]]) parts.legs.push(this.box(g, 4, 9, 4, sx, 9, sz, '#ffffff', { pivotTop: true, texture: 'polar_bear', uv: this.cubeUV(0, 0, 4, 9, 4, 64, 64) }));
+      return true;
+    }
+    if (t === 'rabbit' || t === 'bat' || t === 'fox' || t === 'goat') {
+      const dims = { rabbit: [6, 6, 8], bat: [4, 4, 6], fox: [8, 7, 12], goat: [8, 9, 12] }[t];
+      const texH = t === 'bat' ? 32 : 64;
+      parts.body = textured(t, dims[0], dims[1], dims[2], 0, dims[1] + 3, 0, 64, texH);
+      parts.head = textured(t, t === 'fox' ? 7 : 5, t === 'goat' ? 7 : 5, t === 'fox' ? 7 : 5, 0, dims[1] + 8, -dims[2] / 2 - 2, 64, texH);
+      for (const sx of [-1, 1]) parts.legs.push(this.box(g, 2, t === 'bat' ? 3 : 5, 2, sx * (dims[0] / 3), 4, -dims[2] / 4, '#ffffff', { pivotTop: true, texture: t, uv: this.cubeUV(0, 0, 2, t === 'bat' ? 3 : 5, 2, 64, texH) }));
+      if (t === 'bat') for (const sx of [-1, 1]) parts.arms.push(this.box(g, 1, 5, 10, sx * 5, 10, 0, '#ffffff', { texture: t, uv: this.cubeUV(0, 0, 1, 5, 10, 64, 32) }));
+      if (t === 'goat') { this.box(parts.head, 1, 4, 1, -2, -4, 0, '#ddd4c3'); this.box(parts.head, 1, 4, 1, 2, -4, 0, '#ddd4c3'); }
+      return true;
+    }
+    if (t === 'iron_golem') {
+      parts.body = textured('iron_golem', 10, 18, 6, 0, 18, 0, 64, 64);
+      parts.head = textured('iron_golem', 8, 8, 8, 0, 31, 0, 64, 64);
+      for (const sx of [-1, 1]) {
+        parts.arms.push(this.box(g, 4, 16, 4, sx * 8, 18, 0, '#ffffff', { pivotTop: true, texture: 'iron_golem', uv: this.cubeUV(0, 0, 4, 16, 4, 64, 64) }));
+        parts.legs.push(this.box(g, 4, 12, 4, sx * 3, 12, 0, '#ffffff', { pivotTop: true, texture: 'iron_golem', uv: this.cubeUV(0, 0, 4, 12, 4, 64, 64) }));
+      }
+      return true;
+    }
+    return false;
+  },
   buildModel(m) {
     const g = new THREE.Group(), t = m.type, parts = { legs: [], arms: [] };
     const face = (base) => this.faceTexture(t, base);
-    if (t === 'pig') {
+    if (this.buildSpecialModel(m, g, parts, face)) {
+      // Model-specific geometry above uses the matching 26.2 entity texture.
+    } else if (t === 'pig') {
       parts.body = this.box(g, 10, 16, 8, 0, 10, 0, '#ffffff', { texture: 'pig', uv: this.cubeUV(28, 8, 10, 16, 8, 64, 64) });
       parts.body.userData.mesh.rotation.x = Math.PI / 2;
       parts.head = this.box(g, 8, 8, 8, 0, 12, -10, '#ffffff', { texture: 'pig', uv: this.cubeUV(0, 0, 8, 8, 8, 64, 64), face: face('#f0a5a5') });
@@ -4499,10 +4593,11 @@ const Mobs = {
       foldedArms.push(this.box(g, 8, 4, 4, 0, 17, -1, pillagerFallback, { ...tex, uv: this.cubeUV(40, 38, 8, 4, 4, 64, 64) }));
       parts.foldedArms = foldedArms;
       g.scale.set(0.9, 0.9, 0.9);
-    } else if (t === 'villager') {
+    } else if (t === 'villager' || t === 'wandering_trader') {
       const skin = '#d3a06c';
-      const tex = { texture: 'villager' };
-      const villagerFallback = this.entityTexture('villager') ? '#ffffff' : '#795437';
+      const villagerTexture = t === 'wandering_trader' ? 'wandering_trader' : 'villager';
+      const tex = { texture: villagerTexture };
+      const villagerFallback = this.entityTexture(villagerTexture) ? '#ffffff' : '#795437';
       // Layout oficial do VillagerModel: cabeça 8x10, corpo em (16,20),
       // túnica em (0,38), braços unidos e pernas de 12 pixels.
       parts.legs.push(this.box(g, 4, 12, 4, -2, 12, 0, villagerFallback, { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
