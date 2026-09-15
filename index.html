@@ -4506,13 +4506,15 @@ const Mobs = {
       return true;
     }
     if (t === 'wolf') {
-      parts.body = textured('wolf', 8, 8, 12, 0, 10, 0, 64, 32);
+      parts.body = this.box(g, 6, 6, 10, 0, 10, 0, '#ffffff', { texture: 'wolf', uv: this.cubeUV(18, 14, 6, 6, 10, 64, 32) });
       parts.body.userData.mesh.rotation.x = Math.PI / 2;
-      parts.head = textured('wolf', 6, 6, 6, 0, 15, -9, 64, 32);
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.legs.push(this.box(g, 3, 7, 3, sx * 3, 7, sz * 4, '#ffffff', { pivotTop: true, texture: 'wolf', uv: this.cubeUV(0, 0, 3, 7, 3, 64, 32) }));
-      const tail = this.box(g, 3, 7, 3, 0, 12, 8, '#ffffff', { pivotTop: true, texture: 'wolf', uv: this.cubeUV(0, 0, 3, 7, 3, 64, 32) });
+      parts.head = this.box(g, 6, 6, 6, 0, 15, -8, '#ffffff', { texture: 'wolf', uv: this.cubeUV(0, 0, 6, 6, 6, 64, 32) });
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.legs.push(this.box(g, 2, 8, 2, sx * 2.5, 8, sz * 3, '#ffffff', { pivotTop: true, texture: 'wolf', uv: this.cubeUV(0, 18, 2, 8, 2, 64, 32) }));
+      const tail = this.box(g, 2, 8, 2, 0, 11, 6, '#ffffff', { pivotTop: true, texture: 'wolf', uv: this.cubeUV(9, 18, 2, 8, 2, 64, 32) });
       tail.rotation.x = -0.55;
       parts.arms.push(tail);
+      this.box(parts.head, 2, 2, 1, -2.3, -3.2, -1.2, '#ffffff', { texture: 'wolf', uv: this.cubeUV(0, 6, 2, 2, 1, 64, 32) });
+      this.box(parts.head, 2, 2, 1, 2.3, -3.2, -1.2, '#ffffff', { texture: 'wolf', uv: this.cubeUV(0, 6, 2, 2, 1, 64, 32) });
       return true;
     }
     if (t === 'spider' || t === 'cave_spider') {
