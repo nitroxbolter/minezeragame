@@ -38,6 +38,7 @@ const MIME = {
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
   '.webp': 'image/webp',
+  '.ogg': 'audio/ogg',
   '.ico': 'image/x-icon',
   '.zip': 'application/zip',
   '.txt': 'text/plain; charset=utf-8',
