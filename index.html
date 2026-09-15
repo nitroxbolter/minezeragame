@@ -5673,7 +5673,7 @@ const Menus = {
    19. GAME BOOTSTRAP + MAIN LOOP
    ========================================================================== */
 const PlayerView = {
-  group: null, fpHeld: null, fpArm: null, mat: null, texture: null, held: null, heldName: null, heldTex: null, walkTime: 0,
+  group: null, fpHeld: null, mat: null, texture: null, held: null, heldName: null, heldTex: null, walkTime: 0,
   swingTimer: 0, SWING_TIME: 0.36,
   YAW_OFFSET: 0,
   init(scene, camera) {
@@ -5733,15 +5733,10 @@ const PlayerView = {
     this.held.rotation.set(-0.85, 0.15, -0.25);
     g.children[4].add(this.held);
     this.fpHeld = new THREE.Group();
-    this.fpHeld.position.set(0.48, -0.42, -0.88);
+    this.fpHeld.position.set(0.60, -0.52, -0.88);
     this.fpHeld.rotation.set(-0.25, 0.05, -0.18);
     camera.add(this.fpHeld);
     this.fpHeld.visible = false;
-    // First-person right arm. It shares the selected skin texture with the
-    // third-person model and stays visible behind the held item.
-    this.fpArm = makeLimb(armW, 0.75, 0.25, 0, 0, 0, rightArm);
-    camera.add(this.fpArm);
-    this.fpArm.visible = false;
     g.visible = false;
     scene.add(g);
     this.group = g;
@@ -5822,13 +5817,9 @@ const PlayerView = {
     if (this.fpHeld) {
       const firstPersonActive = Game.cameraMode === 'first' && Game.running && Game.ready && !p.dead && !!Player.held();
       this.fpHeld.visible = firstPersonActive;
-      if (this.fpArm) this.fpArm.visible = firstPersonActive;
-      this.fpHeld.position.set(0.48 - swing * 0.08 - swingCurve * 0.05, -0.42 + swing * 0.25, -0.88 + swing * 0.08);
+      // Keep the classic Minecraft viewmodel: item only, low and to the right.
+      this.fpHeld.position.set(0.60 - swing * 0.08 - swingCurve * 0.05, -0.52 + swing * 0.25, -0.88 + swing * 0.08);
       this.fpHeld.rotation.set(-0.25 + swing * 0.9, 0.05 + swingCurve * 0.18, -0.18 + swing * 0.48 + swingCurve * 0.16);
-      if (this.fpArm) {
-        this.fpArm.position.set(0.42 - swing * 0.04, 0.12 + swing * 0.08, -0.66 + swing * 0.04);
-        this.fpArm.rotation.set(-0.38 + swing * 0.85, -0.08 + swingCurve * 0.12, -0.58 + swing * 0.45 + swingCurve * 0.12);
-      }
     }
   },
   applyCamera(camera) {
