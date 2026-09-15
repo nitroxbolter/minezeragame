@@ -140,6 +140,13 @@
   #loadbar i { display: block; height: 100%; background: var(--accent); width: 0; }
   #death .panel { text-align: center; }
   .warn { color: #7a2a00; font-size: 11px; }
+  .settings-panel { min-width: 420px; }
+  .settings-panel h2 { margin-top: 0; }
+  .settings-row { display: grid; grid-template-columns: 1fr minmax(150px, 240px) 48px; gap: 12px; align-items: center; margin: 14px 0; }
+  .settings-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .settings-row output { text-align: right; font-weight: bold; }
+  .settings-note { color: #555; font-size: 11px; margin: 14px 0; }
+  @media (max-width: 560px) { .settings-panel { min-width: min(420px, calc(100vw - 28px)) !important; } .settings-row { grid-template-columns: 1fr 44px; } .settings-row input[type="range"] { grid-column: 1 / -1; grid-row: 2; } }
 
   /* ----- Mobile controls ------------------------------------------------ */
   #mobile-controls, #mobile-settings { display: none; }
@@ -185,11 +192,14 @@
   .mobile-device #itemname { bottom: 120px; font-size: 12px; }
   .mobile-device #mobile-settings { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.68); pointer-events: auto; }
   .mobile-device #mobile-settings.hidden { display: none; }
-  #mobile-settings .mobile-settings-panel { width: min(340px, calc(100vw - 28px)); padding: 16px; background: #c6c6c6; color: #222; border: 3px solid; border-color: #fff #333 #333 #fff; box-shadow: 0 0 0 2px #000; }
+  #mobile-settings .mobile-settings-panel { width: min(340px, calc(100vw - 28px)); max-height: calc(100vh - 24px); overflow-y: auto; padding: 16px; background: #c6c6c6; color: #222; border: 3px solid; border-color: #fff #333 #333 #fff; box-shadow: 0 0 0 2px #000; }
   #mobile-settings h2 { margin: 0 0 12px; font-size: 17px; }
+  #mobile-settings h3 { margin: 16px 0 8px; font-size: 14px; }
   #mobile-settings p { margin: 8px 0; font-size: 12px; }
   #mobile-settings label { display: block; padding: 10px 8px; margin: 5px 0; background: #999; border: 2px solid #555; font-size: 13px; }
   #mobile-settings input { margin-right: 8px; }
+  #mobile-settings input[type="range"] { display: block; width: 100%; margin: 9px 0 0; accent-color: #3f7f3f; }
+  #mobile-settings output { float: right; font-weight: bold; }
   .mobile-device #screen-panel { max-width: calc(100vw - 16px); }
   .mobile-device #screen-panel .grid { grid-template-columns: repeat(9, min(10vw, 40px)) !important; }
   .mobile-device #screen-panel .catalog { grid-template-columns: repeat(9, min(10vw, 40px)); }
@@ -251,6 +261,9 @@
       <label><input type="radio" name="mobile-move-mode" value="joystick"> Joystick virtual</label>
       <label><input type="radio" name="mobile-move-mode" value="arrows"> Setas direcionais</label>
       <p>Arraste em uma área livre da tela para mover a câmera. Toque para atacar.</p>
+      <h3>Áudio e câmera</h3>
+      <label for="mobile-audio-volume">Volume do áudio <output id="mobile-audio-volume-value">100%</output><input id="mobile-audio-volume" type="range" min="0" max="100" step="5" value="100"></label>
+      <label for="mobile-camera-sensitivity">Sensibilidade da câmera <output id="mobile-camera-sensitivity-value">100%</output><input id="mobile-camera-sensitivity" type="range" min="50" max="200" step="5" value="100"></label>
       <button id="mobile-settings-close" class="btn">Fechar</button>
     </div>
   </div>
@@ -267,6 +280,7 @@
       <div class="row">
         <button class="btn" id="btn-resume">Voltar ao jogo</button>
         <button class="btn" id="btn-skin-settings">Trocar skin</button>
+        <button class="btn" id="btn-game-settings">Configurações</button>
         <a class="btn" id="btn-logout" href="/logout">Sair</a>
         <button class="btn admin-only" id="btn-save">Salvar</button>
         <button class="btn admin-only" id="btn-load">Recarregar mapa</button>
@@ -297,6 +311,25 @@
         <div><b>Flint &amp; steel</b> on TNT to ignite; <b>bucket</b> on water/lava</div>
       </div>
       <p class="warn">O mapa e salvo no servidor. Cada conta salva apenas personagem, posicao e inventario.</p>
+    </div>
+  </div>
+
+  <!-- Audio and camera settings for desktop and mobile -->
+  <div id="game-settings" class="overlay hidden">
+    <div class="panel settings-panel">
+      <h2>Configurações</h2>
+      <div class="settings-row">
+        <label for="audio-volume">Volume do áudio</label>
+        <input id="audio-volume" type="range" min="0" max="100" step="5" value="100">
+        <output id="audio-volume-value" for="audio-volume">100%</output>
+      </div>
+      <div class="settings-row">
+        <label for="camera-sensitivity">Sensibilidade da câmera</label>
+        <input id="camera-sensitivity" type="range" min="50" max="200" step="5" value="100">
+        <output id="camera-sensitivity-value" for="camera-sensitivity">100%</output>
+      </div>
+      <p class="settings-note">As configurações são salvas neste dispositivo e funcionam no mouse e no toque.</p>
+      <div class="row"><button class="btn" id="btn-game-settings-close">Voltar</button></div>
     </div>
   </div>
 
@@ -2868,9 +2901,48 @@ const Physics = {
   blockIntersects(e, x, y, z) { return x < e.x + e.w && x + 1 > e.x - e.w && y < e.y + e.h && y + 1 > e.y && z < e.z + e.w && z + 1 > e.z - e.w; }
 };
 
+const GameSettings = {
+  key: 'minezera-settings-v1',
+  audio: 1,
+  sensitivity: 1,
+  load() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(this.key) || '{}');
+      if (Number.isFinite(Number(saved.audio))) this.audio = clamp(Number(saved.audio), 0, 1);
+      if (Number.isFinite(Number(saved.sensitivity))) this.sensitivity = clamp(Number(saved.sensitivity), 0.5, 2);
+    } catch (e) { /* storage unavailable: use defaults */ }
+    this.apply();
+  },
+  save() {
+    try { localStorage.setItem(this.key, JSON.stringify({ audio: this.audio, sensitivity: this.sensitivity })); } catch (e) { /* storage unavailable */ }
+  },
+  apply() {
+    if (typeof Player !== 'undefined') Player.SENS = 0.0022 * this.sensitivity;
+    if (typeof Input !== 'undefined') Input.touchLookSensitivity = 1.35 * this.sensitivity;
+    const sound = window.MinezeraSound;
+    if (sound) { sound.volume = 0.62 * this.audio; sound.synthVolume = 0.22 * this.audio; }
+  },
+  setAudio(value) { this.audio = clamp(Number(value) / 100, 0, 1); this.apply(); this.save(); this.syncUi(); },
+  setSensitivity(value) { this.sensitivity = clamp(Number(value) / 100, 0.5, 2); this.apply(); this.save(); this.syncUi(); },
+  syncUi() {
+    const audio = Math.round(this.audio * 100), sensitivity = Math.round(this.sensitivity * 100);
+    for (const id of ['audio-volume', 'mobile-audio-volume']) { const el = $(id); if (el) el.value = audio; }
+    for (const id of ['camera-sensitivity', 'mobile-camera-sensitivity']) { const el = $(id); if (el) el.value = sensitivity; }
+    for (const id of ['audio-volume-value', 'mobile-audio-volume-value']) { const el = $(id); if (el) el.textContent = audio + '%'; }
+    for (const id of ['camera-sensitivity-value', 'mobile-camera-sensitivity-value']) { const el = $(id); if (el) el.textContent = sensitivity + '%'; }
+  },
+  init() {
+    this.load();
+    const audio = (e) => this.setAudio(e.target.value), sensitivity = (e) => this.setSensitivity(e.target.value);
+    for (const id of ['audio-volume', 'mobile-audio-volume']) { const el = $(id); if (el) el.addEventListener('input', audio); }
+    for (const id of ['camera-sensitivity', 'mobile-camera-sensitivity']) { const el = $(id); if (el) el.addEventListener('input', sensitivity); }
+    this.syncUi();
+  }
+};
+
 /* ---- Input --------------------------------------------------------------- */
 const Input = {
-  keys: {}, buttons: [false, false, false], dx: 0, dy: 0, locked: false, wheel: 0, canvas: null,
+  keys: {}, buttons: [false, false, false], dx: 0, dy: 0, locked: false, wheel: 0, canvas: null, touchLookSensitivity: 1.35,
   mobile: false, mobileMove: { x: 0, y: 0 }, touchLook: null, touchActionTimer: null, touchHoldTimer: null,
   init(canvas) {
     this.canvas = canvas;
@@ -2936,7 +3008,7 @@ const Input = {
           this.touchHoldTimer = null;
           if (t.mining) { t.mining = false; this.buttons[0] = false; }
         }
-        this.dx += mx * 1.35; this.dy += my * 1.35;
+        this.dx += mx * this.touchLookSensitivity; this.dy += my * this.touchLookSensitivity;
       }
       e.preventDefault();
     }, { passive: false });
@@ -5354,6 +5426,15 @@ const Menus = {
   testSeed() {
     return TEST_WORLD_SEED_PREFIX;
   },
+  openGameSettings() {
+    GameSettings.syncUi();
+    $('pause').classList.add('hidden');
+    $('game-settings').classList.remove('hidden');
+  },
+  closeGameSettings() {
+    $('game-settings').classList.add('hidden');
+    if (Game.running) $('pause').classList.remove('hidden');
+  },
   async playTestWorld() {
     const d = await Save.loadData();
     if (d && d.version === WORLD_GENERATION_VERSION && d.seed === this.testSeed()) { Save.apply(d); return; }
@@ -5364,6 +5445,7 @@ const Menus = {
     Game.start(this.testSeed(), null);
   },
   init() {
+    GameSettings.init();
     PlayerSkins.load();
     PlayerSkins.renderAll();
     PlayerSkins.updateSavedUi();
@@ -5387,6 +5469,9 @@ const Menus = {
       MobileDisplay.enterGame();
       this.playTestWorld();
     });
+    $('btn-game-settings').addEventListener('click', () => this.openGameSettings());
+    $('btn-game-settings-close').addEventListener('click', () => this.closeGameSettings());
+    $('game-settings').addEventListener('click', (e) => { if (e.target === $('game-settings')) this.closeGameSettings(); });
     $('btn-skin-settings').addEventListener('click', () => {
       $('pause').classList.add('hidden');
       $('skin-settings').classList.remove('hidden');
