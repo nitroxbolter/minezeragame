@@ -4,6 +4,7 @@ resourcepack.zip
 *.tar.gz
 
 # Runtime state and session tokens must stay on the server.
+vps-acesso.txt
 storage/sessions/*
 !storage/sessions/.gitkeep
 storage/world/*

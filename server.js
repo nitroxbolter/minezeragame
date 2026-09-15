@@ -190,6 +190,22 @@ async function migrateDatabase() {
     await query('ALTER TABLE contas ADD COLUMN tipo TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER senha_hash');
     console.log('[db] coluna contas.tipo criada');
   }
+  const spawnColumns = ['spawn_x', 'spawn_y', 'spawn_z'];
+  for (const column of spawnColumns) {
+    const exists = await query(
+      `SELECT COUNT(*) AS total
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'personagens'
+         AND COLUMN_NAME = ?`,
+      [column]
+    );
+    if (!Number(exists[0].total)) {
+      await query(`ALTER TABLE personagens ADD COLUMN ${column} DOUBLE NULL`);
+      console.log(`[db] coluna ${column} criada`);
+    }
+  }
+  await query('UPDATE personagens SET spawn_x = COALESCE(spawn_x, pos_x), spawn_y = COALESCE(spawn_y, pos_y), spawn_z = COALESCE(spawn_z, pos_z) WHERE spawn_x IS NULL OR spawn_y IS NULL OR spawn_z IS NULL');
 }
 
 async function currentUser(req) {
@@ -211,6 +227,9 @@ async function currentUser(req) {
        p.pos_x,
        p.pos_y,
        p.pos_z,
+       p.spawn_x,
+       p.spawn_y,
+       p.spawn_z,
        p.yaw,
        p.pitch,
        p.inventory_json,
@@ -517,6 +536,7 @@ function buildItemCatalog() {
     ['Machados', tools.filter((id) => id.endsWith('_axe'))],
     ['Pas', tools.filter((id) => id.endsWith('_shovel'))],
     ['Picaretas', tools.filter((id) => id.endsWith('_pickaxe'))],
+    ['Enxadas', tools.filter((id) => id.endsWith('_hoe'))],
     ['Outras ferramentas', tools.filter((id) => !/_sword$|_axe$|_shovel$|_pickaxe$/.test(id))],
     ['Armaduras', armor]
   ];
@@ -533,7 +553,26 @@ async function readCustomItemCatalog() {
   try {
     const raw = await fs.promises.readFile(ITEM_CATALOG_PATH, 'utf8');
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter((item) => item && item.id).map((item) => {
+      // Keep generated resource-pack items in the same admin categories as
+      // the base catalog, even when their source JSON only had a generic
+      // "Outras ferramentas" category.
+      const id = String(item.id);
+      const inferredCategory = id.endsWith('_sword') ? 'Espadas'
+        : id.endsWith('_axe') ? 'Machados'
+          : id.endsWith('_shovel') ? 'Pas'
+            : id.endsWith('_pickaxe') ? 'Picaretas'
+              : id.endsWith('_hoe') ? 'Enxadas' : null;
+      const category = inferredCategory && (!item.category || item.category === 'Outros' || item.category === 'Outras ferramentas')
+        ? inferredCategory : (item.category || 'Outros');
+      return {
+        ...item,
+        // Catalogs generated from resource packs may use displayName. The
+        // admin UI historically used name, so normalize both forms here.
+        name: item.name || item.displayName || item.id,
+        category
+      };
+    }) : [];
   } catch (e) {
     if (e.code === 'ENOENT') return [];
     console.error('Nao foi possivel ler o catalogo personalizado:', e.message);
@@ -560,7 +599,7 @@ async function saveCustomItem(item) {
 
 function itemPreviewClass(item) {
   if (item.category === 'Comida') return 'food';
-  if (/Espadas|Machados|Pas|Picaretas|Outras ferramentas|Armaduras/.test(item.category)) return 'tool';
+  if (/Espadas|Machados|Pas|Picaretas|Enxadas|Outras ferramentas|Armaduras/.test(item.category)) return 'tool';
   if (item.category === 'Materiais') return 'material';
   if (item.id.includes('ore') || item.id.includes('stone') || item.id === 'bedrock' || item.id === 'obsidian') return 'stone';
   if (item.id.includes('log') || item.id.includes('planks') || item.id === 'chest' || item.id === 'crafting_table') return 'wood';
@@ -603,7 +642,7 @@ function adminConsoleBlock() {
     </div>`;
 }
 
-const ITEM_CATEGORIES = ['Blocos', 'Materiais', 'Comida', 'Espadas', 'Machados', 'Pas', 'Picaretas', 'Outras ferramentas', 'Armaduras', 'Outros'];
+const ITEM_CATEGORIES = ['Blocos', 'Materiais', 'Comida', 'Espadas', 'Machados', 'Pas', 'Picaretas', 'Enxadas', 'Outras ferramentas', 'Armaduras', 'Outros'];
 
 function itemPreviewMarkup(item, large = false) {
   const size = large ? ' item-preview-large' : '';
@@ -618,8 +657,18 @@ function itemCategoryOptions(selected) {
   return ITEM_CATEGORIES.map((category) => '<option value="' + htmlEscape(category) + '" ' + (selected === category ? 'selected' : '') + '>' + htmlEscape(category) + '</option>').join('');
 }
 
+function adminGiveItemOptions(catalog) {
+  return '<option value="" selected disabled>Selecione um item</option>' + catalog.map((item) => '<option value="' + htmlEscape(item.id) + '" data-name="' + htmlEscape(String(item.name).toLocaleLowerCase('pt-BR')) + '" data-category="' + htmlEscape(item.category || 'Outros') + '">' + htmlEscape(item.name) + ' (' + htmlEscape(item.id) + ')</option>').join('');
+}
+
+function adminGiveItemPicker(catalog) {
+  const categories = ITEM_CATEGORIES.map((category) => '<option value="' + htmlEscape(category) + '">' + htmlEscape(category) + '</option>').join('');
+  return '<div class="item-give-picker"><label for="admin-give-search">Pesquisar item pelo nome</label><input id="admin-give-search" type="search" placeholder="Digite o nome do item..." autocomplete="off"><label for="admin-give-category">Filtrar por categoria</label><select id="admin-give-category"><option value="">Todas as categorias</option>' + categories + '</select><label for="admin-give-item">Item</label><select id="admin-give-item" name="item" required>' + adminGiveItemOptions(catalog) + '</select></div><script>document.addEventListener("DOMContentLoaded", function () { var search = document.getElementById("admin-give-search"); var category = document.getElementById("admin-give-category"); var select = document.getElementById("admin-give-item"); function filterItems() { var term = search.value.trim().toLocaleLowerCase(); Array.from(select.options).forEach(function (option) { if (!option.value) { option.hidden = false; return; } var matchesName = !term || option.dataset.name.indexOf(term) !== -1; var matchesCategory = !category.value || option.dataset.category === category.value; option.hidden = !(matchesName && matchesCategory); }); if (select.value && select.selectedOptions[0] && select.selectedOptions[0].hidden) select.value = ""; } search.addEventListener("input", filterItems); category.addEventListener("change", filterItems); });</script>';
+}
+
 async function adminItemsPage(user, { message = '', detailId = '' } = {}) {
   const catalog = await getAdminItemCatalog();
+  const accounts = await query('SELECT p.conta_id, c.login, p.nome FROM personagens p INNER JOIN contas c ON c.id = p.conta_id ORDER BY c.login');
   const selected = detailId ? catalog.find((item) => item.id === detailId) : null;
   if (detailId && !selected) return layout('Item nao encontrado', '<section class="auth-card"><h1>Item nao encontrado</h1><a class="button-secondary" href="' + htmlEscape(appUrl('/admin?tab=itens')) + '">Voltar aos itens</a></section>', 'panel');
   if (detailId) {
@@ -629,7 +678,7 @@ async function adminItemsPage(user, { message = '', detailId = '' } = {}) {
   const grouped = ITEM_CATEGORIES.map((category) => [category, catalog.filter((item) => item.category === category)]).filter(([, items]) => items.length);
   const filter = '<div class="item-filter"><label for="item-category-filter">Categoria</label><select id="item-category-filter"><option value="all">Todos</option>' + ITEM_CATEGORIES.map((category) => '<option value="' + htmlEscape(category) + '">' + htmlEscape(category) + '</option>').join('') + '</select></div><script>document.addEventListener("DOMContentLoaded", function () { var select = document.getElementById("item-category-filter"); var sections = document.querySelectorAll(".items-category"); sections.forEach(function (section) { section.dataset.category = section.querySelector("h3").textContent; }); select.addEventListener("change", function () { sections.forEach(function (section) { section.hidden = select.value !== "all" && section.dataset.category !== select.value; }); }); });</script>';
   const grid = grouped.map(([category, items]) => '<section class="items-category"><h3>' + htmlEscape(category) + '</h3><div class="items-grid">' + items.map((item) => '<a class="item-card" href="' + htmlEscape(appUrl('/admin/item?id=' + encodeURIComponent(item.id))) + '">' + itemPreviewMarkup(item) + '<strong>' + htmlEscape(item.name) + '</strong></a>').join('') + '</div></section>').join('');
-  return layout('Gerenciador de itens', '<section class="skills admin-items-page"><h1>Gerenciador de itens</h1>' + (message ? '<div class="alert">' + htmlEscape(message) + '</div>' : '') + '<div class="item-page-actions"><a class="button-primary" href="' + htmlEscape(appUrl('/admin/item-new')) + '">Criar novo item</a><a class="button-secondary" href="' + htmlEscape(appUrl('/admin')) + '">Servidor</a></div><form method="post" action="' + htmlEscape(appUrl('/admin/items')) + '" class="item-give-form"><input type="hidden" name="csrf_token" value="' + htmlEscape(user.csrf) + '"><label>Adicionar item a uma conta</label><select name="conta_id">' + (await query('SELECT p.conta_id, c.login, p.nome FROM personagens p INNER JOIN contas c ON c.id = p.conta_id ORDER BY c.login')).map((a) => '<option value="' + Number(a.conta_id) + '">' + htmlEscape(a.login) + ' - ' + htmlEscape(a.nome) + '</option>').join('') + '</select><select name="item">' + catalog.map((item) => '<option value="' + htmlEscape(item.id) + '">' + htmlEscape(item.name) + '</option>').join('') + '</select><input name="count" type="number" min="1" max="999" value="64"><button type="submit">Adicionar ao inventario</button></form>' + filter + grid + '</section>', 'panel');
+  return layout('Gerenciador de itens', '<section class="skills admin-items-page"><h1>Gerenciador de itens</h1>' + (message ? '<div class="alert">' + htmlEscape(message) + '</div>' : '') + '<div class="item-page-actions"><a class="button-primary" href="' + htmlEscape(appUrl('/admin/item-new')) + '">Criar novo item</a><a class="button-secondary" href="' + htmlEscape(appUrl('/admin')) + '">Servidor</a></div><form method="post" action="' + htmlEscape(appUrl('/admin/items')) + '" class="item-give-form"><input type="hidden" name="csrf_token" value="' + htmlEscape(user.csrf) + '"><label for="admin-give-account">Adicionar item a uma conta</label><select id="admin-give-account" name="conta_id">' + accounts.map((a) => '<option value="' + Number(a.conta_id) + '">' + htmlEscape(a.login) + ' - ' + htmlEscape(a.nome) + '</option>').join('') + '</select>' + adminGiveItemPicker(catalog) + '<label for="admin-give-count">Quantidade</label><input id="admin-give-count" name="count" type="number" min="1" max="999" placeholder="Quantidade" required><button type="submit">Adicionar ao inventario</button></form>' + filter + grid + '</section>', 'panel');
 }
 
 async function adminItemEditorPage(user, { item = null, message = '' } = {}) {
@@ -695,7 +744,7 @@ async function adminPage(user, { tab = 'servidor', message = '' } = {}) {
       </form>
       <h2 style="margin-top:24px;">Todos os itens</h2>
       <div class="items-catalog">
-        ${['Blocos', 'Materiais', 'Comida', 'Espadas', 'Machados', 'Pas', 'Picaretas', 'Outras ferramentas', 'Armaduras'].map((category) => {
+        ${['Blocos', 'Materiais', 'Comida', 'Espadas', 'Machados', 'Pas', 'Picaretas', 'Enxadas', 'Outras ferramentas', 'Armaduras'].map((category) => {
           const items = ADMIN_ITEM_CATALOG.filter((item) => item.category === category);
           return `<section class="items-category"><h3>${htmlEscape(category)}</h3>
             <div class="items-table-wrap"><table class="items-table"><thead><tr><th>ID</th><th>Preview</th><th>Nome</th><th>Tier</th></tr></thead><tbody>
@@ -834,6 +883,9 @@ function publicPlayer(user) {
     pos_x: user.pos_x === null ? null : Number(user.pos_x),
     pos_y: user.pos_y === null ? null : Number(user.pos_y),
     pos_z: user.pos_z === null ? null : Number(user.pos_z),
+    spawn_x: user.spawn_x === null ? null : Number(user.spawn_x),
+    spawn_y: user.spawn_y === null ? null : Number(user.spawn_y),
+    spawn_z: user.spawn_z === null ? null : Number(user.spawn_z),
     yaw: Number(user.yaw),
     pitch: Number(user.pitch),
     inventory: parseInventory(user.inventory_json),
@@ -883,6 +935,11 @@ async function handlePersonagemApi(req, res) {
         y: user.pos_y === null ? null : Number(user.pos_y),
         z: user.pos_z === null ? null : Number(user.pos_z)
       },
+      spawn: {
+        x: user.spawn_x === null ? null : Number(user.spawn_x),
+        y: user.spawn_y === null ? null : Number(user.spawn_y),
+        z: user.spawn_z === null ? null : Number(user.spawn_z)
+      },
       yaw: Number(user.yaw),
       pitch: Number(user.pitch),
       inventario: parseInventory(user.inventory_json),
@@ -906,6 +963,8 @@ async function handleSavePersonagemApi(req, res) {
   if (!user) return sendJson(res, { ok: false, erro: 'nao_autenticado' }, 401);
   const payload = await readJson(req);
   const inventory = Array.isArray(payload.inventory) ? JSON.stringify(payload.inventory.slice(0, 36)) : null;
+  const requestedSpawn = Array.isArray(payload.spawn) ? payload.spawn.slice(0, 3).map(Number) : null;
+  const validSpawn = requestedSpawn && requestedSpawn.length === 3 && requestedSpawn.every(Number.isFinite);
   await query(
     `UPDATE personagens
      SET dias_jogados = GREATEST(dias_jogados, ?),
@@ -916,6 +975,9 @@ async function handleSavePersonagemApi(req, res) {
          pos_x = ?,
          pos_y = ?,
          pos_z = ?,
+         spawn_x = ?,
+         spawn_y = ?,
+         spawn_z = ?,
          yaw = ?,
          pitch = ?,
          inventory_json = COALESCE(?, inventory_json),
@@ -931,6 +993,9 @@ async function handleSavePersonagemApi(req, res) {
       payload.x !== undefined ? Number(payload.x) : user.pos_x,
       payload.y !== undefined ? Number(payload.y) : user.pos_y,
       payload.z !== undefined ? Number(payload.z) : user.pos_z,
+      validSpawn ? requestedSpawn[0] : user.spawn_x,
+      validSpawn ? requestedSpawn[1] : user.spawn_y,
+      validSpawn ? requestedSpawn[2] : user.spawn_z,
       payload.yaw !== undefined ? Number(payload.yaw) : Number(user.yaw),
       payload.pitch !== undefined ? Number(payload.pitch) : Number(user.pitch),
       inventory,

@@ -53,6 +53,7 @@
   body { font-family: "Lucida Console", Monaco, Consolas, monospace; color: var(--text); user-select: none; -webkit-user-select: none; }
   #app { position: relative; width: 100%; height: 100%; }
   #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  #gl { touch-action: none; }
   .hidden { display: none !important; }
 
   /* ----- HUD ------------------------------------------------------------ */
@@ -138,6 +139,63 @@
   #loadbar i { display: block; height: 100%; background: var(--accent); width: 0; }
   #death .panel { text-align: center; }
   .warn { color: #7a2a00; font-size: 11px; }
+
+  /* ----- Mobile controls ------------------------------------------------ */
+  #mobile-controls, #mobile-settings { display: none; }
+  .mobile-device #mobile-controls {
+    display: block; position: absolute; inset: 0; z-index: 8; pointer-events: none;
+    touch-action: none;
+  }
+  .mobile-device .mobile-control, .mobile-device #mobile-joystick, .mobile-device #mobile-arrows {
+    pointer-events: auto; touch-action: none;
+  }
+  .mobile-control {
+    border: 2px solid rgba(255,255,255,.55); color: #fff; background: rgba(20,20,20,.58);
+    box-shadow: 0 2px 0 rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.35);
+    font: bold 22px monospace; text-shadow: 2px 2px #000; -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+  }
+  .mobile-control:active, .mobile-control.active { background: rgba(75,120,170,.82); transform: scale(.96); }
+  #mobile-arrows { position: absolute; left: 14px; bottom: 92px; width: 148px; height: 148px; display: none; }
+  #mobile-arrows button { position: absolute; width: 50px; height: 50px; padding: 0; border-radius: 8px; }
+  #mobile-arrows [data-dir="up"] { left: 49px; top: 0; }
+  #mobile-arrows [data-dir="left"] { left: 0; top: 49px; }
+  #mobile-arrows [data-dir="down"] { left: 49px; top: 98px; }
+  #mobile-arrows [data-dir="right"] { left: 98px; top: 49px; }
+  #mobile-joystick { position: absolute; left: 20px; bottom: 92px; width: 132px; height: 132px; border-radius: 50%; display: none; background: rgba(20,20,20,.35); border: 2px solid rgba(255,255,255,.42); }
+  #mobile-joystick::after { content: ""; position: absolute; inset: 29px; border: 1px dashed rgba(255,255,255,.25); border-radius: 50%; }
+  #mobile-knob { position: absolute; left: 41px; top: 41px; width: 46px; height: 46px; border-radius: 50%; background: rgba(210,230,255,.66); border: 2px solid rgba(255,255,255,.8); z-index: 1; }
+  #mobile-actions { position: absolute; right: 14px; bottom: 94px; display: grid; grid-template-columns: repeat(2, 58px); gap: 10px; }
+  #mobile-actions button { width: 58px; height: 58px; border-radius: 50%; }
+  #mobile-actions #mobile-attack { width: 70px; height: 70px; grid-row: span 2; align-self: center; font-size: 28px; }
+  #mobile-actions #mobile-inventory { font-size: 20px; }
+  #mobile-actions #mobile-jump { font-size: 26px; }
+  #mobile-actions #mobile-use { font-size: 20px; }
+  #mobile-settings-button { position: absolute; right: 14px; top: 52px; width: 44px; height: 44px; border-radius: 8px; font-size: 22px; }
+  #mobile-hint { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); padding: 5px 8px; color: #fff; background: rgba(0,0,0,.45); font: 10px monospace; text-shadow: 1px 1px #000; opacity: .85; }
+  .mobile-device #mobile-arrows[data-visible="true"] { display: block; }
+  .mobile-device #mobile-joystick[data-visible="true"] { display: block; }
+  .mobile-device #hotbar { bottom: 8px; max-width: calc(100vw - 12px); }
+  .mobile-device .hslot { width: min(10.4vw, 50px); height: min(10.4vw, 50px); }
+  .mobile-device #bars { bottom: 65px; width: min(364px, 78vw); }
+  .mobile-device #itemname { bottom: 120px; font-size: 12px; }
+  .mobile-device #mobile-settings { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.68); pointer-events: auto; }
+  .mobile-device #mobile-settings.hidden { display: none; }
+  #mobile-settings .mobile-settings-panel { width: min(340px, calc(100vw - 28px)); padding: 16px; background: #c6c6c6; color: #222; border: 3px solid; border-color: #fff #333 #333 #fff; box-shadow: 0 0 0 2px #000; }
+  #mobile-settings h2 { margin: 0 0 12px; font-size: 17px; }
+  #mobile-settings p { margin: 8px 0; font-size: 12px; }
+  #mobile-settings label { display: block; padding: 10px 8px; margin: 5px 0; background: #999; border: 2px solid #555; font-size: 13px; }
+  #mobile-settings input { margin-right: 8px; }
+  .mobile-device #screen-panel { max-width: calc(100vw - 16px); }
+  .mobile-device #screen-panel .grid { grid-template-columns: repeat(9, min(10vw, 40px)) !important; }
+  .mobile-device #screen-panel .catalog { grid-template-columns: repeat(9, min(10vw, 40px)); }
+  .mobile-device #screen-panel .slot { width: min(10vw, 40px); height: min(10vw, 40px); }
+  .mobile-device #screen-panel .slot.result { width: min(13vw, 52px); height: min(13vw, 52px); }
+  @media (orientation: landscape) and (max-height: 520px) {
+    .mobile-device #mobile-arrows, .mobile-device #mobile-joystick { bottom: 60px; }
+    .mobile-device #mobile-actions { bottom: 60px; }
+    .mobile-device #mobile-settings-button { top: 42px; }
+  }
 </style>
 </head>
 <body>
@@ -163,6 +221,35 @@
     <div id="itemname"></div>
     <canvas id="bars" width="182" height="26"></canvas>
     <div id="hotbar"></div>
+  </div>
+
+  <!-- Touch controls are enabled only on phones/tablets. -->
+  <div id="mobile-controls" aria-label="Controles para celular">
+    <div id="mobile-hint">arraste para olhar · toque para atacar</div>
+    <div id="mobile-arrows" data-visible="false" aria-label="Setas de movimento">
+      <button class="mobile-control" data-dir="up" aria-label="Mover para frente">▲</button>
+      <button class="mobile-control" data-dir="left" aria-label="Mover para esquerda">◀</button>
+      <button class="mobile-control" data-dir="down" aria-label="Mover para trás">▼</button>
+      <button class="mobile-control" data-dir="right" aria-label="Mover para direita">▶</button>
+    </div>
+    <div id="mobile-joystick" data-visible="false" aria-label="Joystick de movimento"><div id="mobile-knob"></div></div>
+    <div id="mobile-actions">
+      <button id="mobile-attack" class="mobile-control" aria-label="Atacar">⚔</button>
+      <button id="mobile-jump" class="mobile-control" aria-label="Pular">▲</button>
+      <button id="mobile-inventory" class="mobile-control" aria-label="Abrir inventário">▦</button>
+      <button id="mobile-use" class="mobile-control" aria-label="Usar item">▣</button>
+    </div>
+    <button id="mobile-settings-button" class="mobile-control" aria-label="Configurações de controles">⚙</button>
+  </div>
+  <div id="mobile-settings" class="hidden" role="dialog" aria-modal="true" aria-label="Configurações dos controles">
+    <div class="mobile-settings-panel">
+      <h2>Controles do celular</h2>
+      <p>Escolha como movimentar o personagem:</p>
+      <label><input type="radio" name="mobile-move-mode" value="joystick"> Joystick virtual</label>
+      <label><input type="radio" name="mobile-move-mode" value="arrows"> Setas direcionais</label>
+      <p>Arraste em uma área livre da tela para mover a câmera. Toque para atacar.</p>
+      <button id="mobile-settings-close" class="btn">Fechar</button>
+    </div>
   </div>
 
   <!-- Generic container screen: inventory / crafting table / furnace / chest / creative -->
@@ -654,6 +741,17 @@ Blocks.define('redstone_lamp', { hardness: 0.3 });
 Blocks.define('redstone_lamp_on', { hardness: 0.3, light: 15, drops: 'redstone_lamp', noItem: true });
 Blocks.define('oak_door', { model: 'door', tex: { all: 'oak_door_bottom', top: 'oak_door_top', bottom: 'oak_door_bottom' }, itemTex: 'oak_door', hardness: 3, tool: 'axe', transparent: true, opaque: false, cullSame: false, flammable: 20, icon: 'flat',
   drops: (r, meta) => (meta & 1) ? [] : [{ item: 'oak_door', count: 1 }] });
+// Beds use the current 26.2 wool-colour textures. They are a low, solid
+// block so they can be placed, walked over and used as a respawn point.
+const BED_DIRECTIONS = ['south', 'west', 'north', 'east'];
+for (const c of WOOL_NAMES) Blocks.define(c + '_bed', {
+  model: 'box', box: [0, 0, 0, 16, 9, 16],
+  tex: c + '_bed_foot_south',
+  variants: (meta) => ({ all: c + '_bed_foot_' + BED_DIRECTIONS[meta & 3] }),
+  itemTex: c + '_bed_head_south',
+  hardness: 0.2, tool: 'axe', drops: c + '_bed', interactive: 'bed',
+  transparent: true, opaque: false, cullSame: false
+});
 // Extra textures that are not a block face but must live in the atlas
 for (let i = 0; i < 10; i++) Blocks.textureNames.add('destroy_stage_' + i);
 Blocks.textureNames.add('missing');
@@ -735,16 +833,19 @@ Items.define('arrow', { type: 'material', creativeTab: 'tools' });
 // Custom items created in the admin panel are persisted by the Node server
 // and injected before recipes, inventory and creative screens are initialized.
 for (const custom of (window.MINEZERA_CUSTOM_ITEMS || [])) {
-  const toolLike = custom.type === 'tool' || custom.type === 'weapon';
+  const customBlock = Blocks.byName[custom.id] || null;
+  const customType = customBlock ? 'block' : (custom.type || 'material');
+  const toolLike = customType === 'tool' || customType === 'weapon';
   Items.define(custom.id, {
     displayName: custom.displayName || custom.name || custom.id,
-    type: custom.type || 'material',
+    type: customType,
+    block: customBlock ? customBlock.id : (custom.block || null),
     stack: Number(custom.stack) || 64,
-    tex: custom.id,
+    tex: custom.tex || custom.id,
     damage: Number(custom.damage) || 0,
-    creativeTab: 'custom',
+    creativeTab: customBlock ? 'blocks' : (custom.creativeTab || 'custom'),
     tool: toolLike ? {
-      kind: custom.type === 'weapon' ? 'sword' : 'tool',
+      kind: custom.toolKind || (custom.type === 'weapon' ? 'sword' : 'tool'),
       tier: custom.tier || 'custom',
       level: 0,
       speed: Number(custom.speed) || 1,
@@ -894,6 +995,7 @@ const Recipes = {
   R.addShaped('lever', 1, ['S', 'C'], { S: 'stick', C: 'cobblestone' });
   R.addShaped('redstone_lamp', 1, [' R ', 'RGR', ' R '], { R: 'redstone', G: 'glowstone' });
   R.addShaped('bucket', 1, ['I I', ' I '], { I: 'iron_ingot' });
+  for (const c of WOOL_NAMES) R.addShaped(c + '_bed', 1, ['WWW', 'PPP'], { W: c + '_wool', P: 'tag:planks' });
   R.addShaped('bow', 1, [' SW', 'S W', ' SW'], { S: 'stick', W: 'string' });
   R.addShaped('arrow', 4, ['F', 'S', 'E'], { F: 'flint', S: 'stick', E: 'feather' });
   R.addShaped('jack_o_lantern', 1, ['P', 'T'], { P: 'pumpkin', T: 'torch' });
@@ -2553,8 +2655,11 @@ const Physics = {
 /* ---- Input --------------------------------------------------------------- */
 const Input = {
   keys: {}, buttons: [false, false, false], dx: 0, dy: 0, locked: false, wheel: 0, canvas: null,
+  mobile: false, mobileMove: { x: 0, y: 0 }, touchLook: null, touchActionTimer: null,
   init(canvas) {
     this.canvas = canvas;
+    this.mobile = (window.matchMedia && (window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(hover: none)').matches)) || navigator.maxTouchPoints > 0;
+    document.body.classList.toggle('mobile-device', this.mobile);
     window.addEventListener('keydown', (e) => {
       if (e.target && e.target.tagName === 'INPUT') return;
       if (e.code === 'Enter' && Game.running && Game.ready && !Screens.isOpen() && !Game.paused && !player.dead) {
@@ -2571,7 +2676,7 @@ const Input = {
       if (['Space', 'Tab', 'F3', 'F1'].includes(e.code)) e.preventDefault();
     });
     window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
-    window.addEventListener('blur', () => { this.keys = {}; this.buttons = [false, false, false]; });
+    window.addEventListener('blur', () => { this.keys = {}; this.buttons = [false, false, false]; this.mobileMove.x = this.mobileMove.y = 0; });
     document.addEventListener('mousemove', (e) => { if (this.locked) { this.dx += e.movementX; this.dy += e.movementY; } });
     canvas.addEventListener('mousedown', (e) => {
       if (!this.locked) { if (Game.running && !Screens.isOpen() && !Game.paused && !Chat.isOpen()) this.lock(); return; }
@@ -2581,12 +2686,65 @@ const Input = {
     document.addEventListener('wheel', (e) => { if (this.locked) this.wheel += Math.sign(e.deltaY); }, { passive: true });
     document.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('pointerlockchange', () => {
+      if (this.mobile) return;
       this.locked = document.pointerLockElement === canvas;
       if (!this.locked) { this.buttons = [false, false, false]; this.keys = {}; Events.emit('unlock'); }
     });
+    // Phones do not provide pointer lock. A touch drag on the free game area
+    // becomes camera look; a short touch without movement becomes a primary
+    // action (attack/mine), matching Minecraft's touch convention.
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!this.mobile || e.pointerType !== 'touch' || !this.locked || Screens.isOpen() || Game.paused || !Game.running || player.dead) return;
+      e.preventDefault();
+      this.touchLook = { id: e.pointerId, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, moved: false, started: performance.now() };
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* capture is optional */ }
+    }, { passive: false });
+    canvas.addEventListener('pointermove', (e) => {
+      const t = this.touchLook;
+      if (!this.mobile || !t || e.pointerId !== t.id) return;
+      const mx = e.clientX - t.x, my = e.clientY - t.y;
+      t.x = e.clientX; t.y = e.clientY;
+      if (Math.hypot(mx, my) > 0) {
+        if (Math.hypot(e.clientX - t.startX, e.clientY - t.startY) > 8) t.moved = true;
+        this.dx += mx * 1.35; this.dy += my * 1.35;
+      }
+      e.preventDefault();
+    }, { passive: false });
+    const finishTouch = (e) => {
+      const t = this.touchLook;
+      if (!this.mobile || !t || e.pointerId !== t.id) return;
+      const quickTap = !t.moved && performance.now() - t.started < 550;
+      this.touchLook = null;
+      if (quickTap) this.tapPrimary();
+      try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* capture is optional */ }
+      e.preventDefault();
+    };
+    canvas.addEventListener('pointerup', finishTouch, { passive: false });
+    canvas.addEventListener('pointercancel', finishTouch, { passive: false });
   },
-  lock() { if (this.locked || !this.canvas) return; try { const r = this.canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* not allowed outside a user gesture */ } },
-  unlock() { if (this.locked) document.exitPointerLock(); },
+  lock() {
+    if (this.locked || !this.canvas) return;
+    if (this.mobile) { this.locked = true; return; }
+    try { const r = this.canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* not allowed outside a user gesture */ }
+  },
+  unlock() {
+    if (this.mobile) { this.locked = false; this.touchLook = null; this.dx = this.dy = 0; this.buttons = [false, false, false]; this.keys = {}; this.mobileMove.x = this.mobileMove.y = 0; return; }
+    if (this.locked) document.exitPointerLock();
+  },
+  setMobileMove(x, y) { this.mobileMove.x = clamp(Number(x) || 0, -1, 1); this.mobileMove.y = clamp(Number(y) || 0, -1, 1); },
+  tapPrimary() {
+    if (!this.mobile || !this.locked || Screens.isOpen() || Game.paused || !Game.running || player.dead) return;
+    this.buttons[0] = true;
+    clearTimeout(this.touchActionTimer);
+    this.touchActionTimer = setTimeout(() => { this.buttons[0] = false; }, 115);
+    Events.emit('mousedown', 0);
+  },
+  tapSecondary() {
+    if (!this.mobile || !this.locked || Screens.isOpen() || Game.paused || !Game.running || player.dead) return;
+    this.buttons[2] = true;
+    clearTimeout(this.touchActionTimer);
+    this.touchActionTimer = setTimeout(() => { this.buttons[2] = false; }, 115);
+  },
   consumeMouse() { const r = [this.dx, this.dy]; this.dx = this.dy = 0; return r; }
 };
 
@@ -2598,12 +2756,12 @@ const player = {
   health: PLAYER_BASE_HEALTH, maxHealth: PLAYER_BASE_HEALTH, hunger: PLAYER_MAX_HUNGER, saturation: 5, exhaustion: 0, air: 300, fire: 0,
   flying: false, sneaking: false, sprinting: false, inWater: false, headInWater: false, inLava: false, onLadder: false,
   inventory: new Array(36).fill(null), hotbar: 0, dead: false, fallStart: 0, regenTimer: 0, starveTimer: 0, hurtTimer: 0,
-  lastSpaceTap: 0, lastWTap: 0, damageTimer: 0, spawn: [0, 80, 0], ticksAlive: 0, lastHurtBy: ''
+  lastSpaceTap: 0, lastWTap: 0, damageTimer: 0, spawn: [0, 80, 0], sleeping: false, ticksAlive: 0, lastHurtBy: ''
 };
 const Player = {
   SENS: 0.0022, fovTarget: 70,
   reset(spawn) {
-    Object.assign(player, { x: spawn[0], y: spawn[1], z: spawn[2], vx: 0, vy: 0, vz: 0, level: 1, exp: 0, kills: 0, maxHealth: PLAYER_BASE_HEALTH, health: PLAYER_BASE_HEALTH, hunger: PLAYER_MAX_HUNGER, saturation: 5, exhaustion: 0, air: 300, fire: 0, dead: false, flying: false, sprinting: false, sneaking: false, fallStart: spawn[1], yaw: 0, pitch: 0 });
+    Object.assign(player, { x: spawn[0], y: spawn[1], z: spawn[2], vx: 0, vy: 0, vz: 0, level: 1, exp: 0, kills: 0, maxHealth: PLAYER_BASE_HEALTH, health: PLAYER_BASE_HEALTH, hunger: PLAYER_MAX_HUNGER, saturation: 5, exhaustion: 0, air: 300, fire: 0, dead: false, sleeping: false, flying: false, sprinting: false, sneaking: false, fallStart: spawn[1], yaw: 0, pitch: 0 });
     player.spawn = spawn.slice();
   },
   maxHealthForLevel(level) {
@@ -2649,6 +2807,17 @@ const Player = {
     const p = player;
     if (p.dead) return;
     const k = Input.keys, controls = Input.locked && !Screens.isOpen() && !Game.paused;
+    if (p.sleeping) {
+      const wake = controls && (k.KeyW || k.KeyA || k.KeyS || k.KeyD || k.Space || Math.abs(Input.mobileMove.x) > 0.1 || Math.abs(Input.mobileMove.y) > 0.1);
+      p.vx = p.vz = p.vy = 0;
+      p.eyeHeight = 0.45;
+      this.fovTarget = 60;
+      if (!wake) return;
+      p.sleeping = false;
+      p.eyeHeight = 1.62;
+      this.fovTarget = 70;
+      HUD.message('Voce levantou da cama.');
+    }
     // Mouse look
     if (Input.locked && !Screens.isOpen()) {
       const [mx, my] = Input.consumeMouse();
@@ -2664,7 +2833,8 @@ const Player = {
     // Movement input
     let mx = 0, mz = 0;
     if (controls) {
-      if (k.KeyW) mz += 1; if (k.KeyS) mz -= 1; if (k.KeyA) mx -= 1; if (k.KeyD) mx += 1;
+      if (Input.mobile) { mx = Input.mobileMove.x; mz = Input.mobileMove.y; }
+      else { if (k.KeyW) mz += 1; if (k.KeyS) mz -= 1; if (k.KeyA) mx -= 1; if (k.KeyD) mx += 1; }
       p.sneaking = !!k.ShiftLeft || !!k.ShiftRight;
       if ((k.ControlLeft || k.ControlRight) && mz > 0 && p.hunger > 6) p.sprinting = true;
       if (mz <= 0 || p.sneaking || p.hunger <= 6) p.sprinting = false;
@@ -2769,10 +2939,21 @@ const Player = {
   respawn() {
     const p = player;
     const s = p.spawn;
-    Object.assign(p, { x: s[0], y: s[1], z: s[2], vx: 0, vy: 0, vz: 0, health: p.maxHealth, hunger: PLAYER_MAX_HUNGER, saturation: 5, exhaustion: 0, air: 300, fire: 0, dead: false, fallStart: s[1], damageTimer: 0 });
+    Object.assign(p, { x: s[0], y: s[1], z: s[2], vx: 0, vy: 0, vz: 0, health: p.maxHealth, hunger: PLAYER_MAX_HUNGER, saturation: 5, exhaustion: 0, air: 300, fire: 0, dead: false, sleeping: false, fallStart: s[1], damageTimer: 0 });
     $('death').classList.add('hidden');
     HUD.refreshHotbar();
     Input.lock();
+  },
+  sleepAt(x, y, z) {
+    const p = player;
+    if (p.dead) return;
+    p.spawn = [x + 0.5, y + 0.58, z + 0.5];
+    p.x = p.spawn[0]; p.y = p.spawn[1]; p.z = p.spawn[2];
+    p.vx = p.vy = p.vz = 0; p.fallStart = p.y; p.sleeping = true;
+    p.yaw = world.getMeta(x, y, z) === 0 ? Math.PI : 0;
+    p.pitch = 0;
+    HUD.message('Voce dormiu. Este e o novo spawn.');
+    AccountSync.save(false);
   },
   eat(item) {
     const p = player;
@@ -2973,6 +3154,7 @@ const Interaction = {
     if (def.interactive === 'crafting') Screens.open('crafting');
     else if (def.interactive === 'furnace') { if (!world.getTile(x, y, z)) world.setTile(x, y, z, Furnace.create()); Screens.open('furnace', { x, y, z }); }
     else if (def.interactive === 'chest') { if (!world.getTile(x, y, z)) world.setTile(x, y, z, { type: 'chest', slots: new Array(27).fill(null) }); Screens.open('chest', { x, y, z }); }
+    else if (def.interactive === 'bed') Player.sleepAt(x, y, z);
   },
   toggleDoor(x, y, z) {
     const meta = world.getMeta(x, y, z), lower = (meta & 1) ? y - 1 : y;
@@ -3222,7 +3404,7 @@ Events.on('tileRemoved', (x, y, z, tile) => {
 
 /* ---- Screens ---------------------------------------------------------------- */
 const Screens = {
-  current: null, data: null, cursor: null, containers: {}, craft2: new Array(4).fill(null), craft9: new Array(9).fill(null), result: [null],
+  current: null, data: null, cursor: null, containers: {}, touchDrag: null, craft2: new Array(4).fill(null), craft9: new Array(9).fill(null), result: [null],
   suppressUnlock: false, tab: 'blocks',
   isOpen() { return !!this.current; },
   open(type, data) {
@@ -3268,7 +3450,7 @@ const Screens = {
       html = `<h2>Chest</h2>${this.gridHTML('chest', 27, 9)}${this.playerInvHTML()}`;
     } else if (t === 'creative') {
       this.current = 'creative';
-      const tabs = ['blocks', 'materials', 'tools', 'food', 'misc'].map(n => `<button class="btn small ${n === this.tab ? 'sel' : ''}" data-tab="${n}">${prettify(n)}</button>`).join('');
+      const tabs = ['blocks', 'materials', 'tools', 'food', 'misc', 'custom'].map(n => `<button class="btn small ${n === this.tab ? 'sel' : ''}" data-tab="${n}">${n === 'custom' ? 'Itens 26.2' : prettify(n)}</button>`).join('');
       const list = Items.list.filter(it => it.creativeTab === this.tab);
       this.containers.catalog = list.map(it => ({ name: it.name, count: it.stack }));
       html = `<h2>Creative Inventory</h2><div class="row">${tabs}<span style="font-size:11px">Click: take stack · Click catalogue with item: delete</span></div><div class="catalog">${list.map((it, i) => this.slotHTML('catalog', i)).join('')}</div>${this.playerInvHTML()}`;
@@ -3278,6 +3460,13 @@ const Screens = {
     P.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { this.tab = b.dataset.tab; this.render(); }));
     P.querySelectorAll('.slot').forEach(el => {
       el.addEventListener('mousedown', (e) => { e.preventDefault(); this.onSlot(el.dataset.c, +el.dataset.i, e.button, e.shiftKey); });
+      el.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'touch') return;
+        e.preventDefault(); e.stopPropagation();
+        this.touchDrag = { id: e.pointerId, c: el.dataset.c, i: +el.dataset.i, x: e.clientX, y: e.clientY };
+        this.onSlot(el.dataset.c, +el.dataset.i, 0, false);
+        this.moveTouchCursor(e.clientX, e.clientY);
+      }, { passive: false });
       el.addEventListener('mouseenter', () => this.showTooltip(el));
       el.addEventListener('mouseleave', () => { $('tooltip').style.display = 'none'; });
     });
@@ -3306,6 +3495,10 @@ const Screens = {
     const el = $('cursor-stack');
     if (!this.cursor) { el.style.display = 'none'; return; }
     el.style.display = 'block'; el.querySelector('img').src = Atlas.getIcon(this.cursor.name); el.querySelector('.cnt').textContent = this.cursor.count > 1 ? this.cursor.count : '';
+  },
+  moveTouchCursor(x, y) {
+    const el = $('cursor-stack');
+    if (el.style.display !== 'none') { el.style.left = (x - 20) + 'px'; el.style.top = (y - 20) + 'px'; }
   },
   showTooltip(el) {
     const s = this.containers[el.dataset.c][+el.dataset.i]; const tip = $('tooltip');
@@ -3375,6 +3568,19 @@ const Screens = {
   },
   init() {
     document.addEventListener('mousemove', (e) => { const el = $('cursor-stack'); if (el.style.display !== 'none') { el.style.left = (e.clientX - 18) + 'px'; el.style.top = (e.clientY - 18) + 'px'; } });
+    document.addEventListener('pointermove', (e) => { if (this.touchDrag && e.pointerId === this.touchDrag.id) { e.preventDefault(); this.moveTouchCursor(e.clientX, e.clientY); } }, { passive: false });
+    const endTouchDrag = (e) => {
+      const drag = this.touchDrag;
+      if (!drag || e.pointerId !== drag.id) return;
+      e.preventDefault();
+      const hit = document.elementFromPoint(e.clientX, e.clientY);
+      const slot = hit && hit.closest ? hit.closest('.slot') : null;
+      if (slot && $('screen-panel').contains(slot)) this.onSlot(slot.dataset.c, +slot.dataset.i, 0, false);
+      else this.onSlot(drag.c, drag.i, 0, false);
+      this.touchDrag = null;
+    };
+    document.addEventListener('pointerup', endTouchDrag, { passive: false });
+    document.addEventListener('pointercancel', endTouchDrag, { passive: false });
     $('screen').addEventListener('mousedown', (e) => { if (e.target === $('screen')) this.close(); });
     Events.on('keypress', (code) => {
       if (code === 'KeyE') { if (this.isOpen()) this.close(); else if (Game.running && !Game.paused && !player.dead) this.open('inventory'); }
@@ -3383,6 +3589,87 @@ const Screens = {
     Events.on('atlasRebuilt', () => { if (this.isOpen()) this.refresh(); HUD.refreshHotbar(); });
   }
 };
+
+/* ---- Mobile controls ------------------------------------------------------ */
+const MobileControls = {
+  mode: 'joystick', draggingStick: false, stickId: null,
+  init() {
+    if (!Input.mobile) return;
+    const saved = (() => { try { return localStorage.getItem('fp_mobile_move_mode'); } catch (e) { return null; } })();
+    this.mode = saved === 'arrows' ? 'arrows' : 'joystick';
+    this.applyMode();
+    const setButton = (el, down, up) => {
+      if (!el) return;
+      const release = (e) => { if (e.pointerId !== undefined && e.pointerType !== 'touch') return; up(e); el.classList.remove('active'); };
+      el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') return; e.preventDefault(); e.stopPropagation(); el.classList.add('active'); down(e); try { el.setPointerCapture(e.pointerId); } catch (err) {} }, { passive: false });
+      el.addEventListener('pointerup', release, { passive: false });
+      el.addEventListener('pointercancel', release, { passive: false });
+    };
+    document.querySelectorAll('#mobile-arrows [data-dir]').forEach((el) => {
+      const dir = el.dataset.dir;
+      setButton(el, () => { this.setArrow(dir, true); }, () => { this.setArrow(dir, false); });
+    });
+    setButton($('mobile-jump'), () => { Input.keys.Space = true; }, () => { Input.keys.Space = false; });
+    setButton($('mobile-attack'), () => { Input.tapPrimary(); }, () => {});
+    setButton($('mobile-use'), () => { Input.tapSecondary(); }, () => {});
+    $('mobile-inventory').addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch') return;
+      e.preventDefault(); e.stopPropagation();
+      if (Game.running && Game.ready && !Game.paused && !player.dead) Screens.open('inventory');
+    }, { passive: false });
+    $('mobile-settings-button').addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') { e.preventDefault(); e.stopPropagation(); this.openSettings(); } }, { passive: false });
+    $('mobile-settings-close').addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') { e.preventDefault(); this.closeSettings(); } }, { passive: false });
+    $('mobile-settings').addEventListener('pointerdown', (e) => { if (e.target === $('mobile-settings')) this.closeSettings(); });
+    document.querySelectorAll('input[name="mobile-move-mode"]').forEach((radio) => radio.addEventListener('change', () => {
+      this.mode = radio.value === 'arrows' ? 'arrows' : 'joystick';
+      try { localStorage.setItem('fp_mobile_move_mode', this.mode); } catch (e) {}
+      this.applyMode();
+    }));
+    const stick = $('mobile-joystick');
+    stick.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch') return;
+      e.preventDefault(); e.stopPropagation(); this.draggingStick = true; this.stickId = e.pointerId;
+      try { stick.setPointerCapture(e.pointerId); } catch (err) {}
+      this.updateStick(e);
+    }, { passive: false });
+    stick.addEventListener('pointermove', (e) => { if (this.draggingStick && e.pointerId === this.stickId) { e.preventDefault(); this.updateStick(e); } }, { passive: false });
+    const endStick = (e) => { if (e.pointerId !== this.stickId) return; this.draggingStick = false; this.stickId = null; Input.setMobileMove(0, 0); $('mobile-knob').style.transform = 'translate(0, 0)'; };
+    stick.addEventListener('pointerup', endStick); stick.addEventListener('pointercancel', endStick);
+    // Touching a hotbar slot selects it without letting the canvas interpret it as an attack.
+    $('hotbar').addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch') return;
+      const slot = e.target.closest('.hslot'); if (!slot) return;
+      e.preventDefault(); e.stopPropagation();
+      const i = Array.prototype.indexOf.call($('hotbar').children, slot);
+      if (i >= 0) { player.hotbar = i; HUD.refreshHotbar(); }
+    }, { passive: false });
+  },
+  applyMode() {
+    const arrows = $('mobile-arrows'), joystick = $('mobile-joystick');
+    if (!arrows || !joystick) return;
+    arrows.dataset.visible = this.mode === 'arrows' ? 'true' : 'false';
+    joystick.dataset.visible = this.mode === 'joystick' ? 'true' : 'false';
+    this.arrowState = { up: false, down: false, left: false, right: false };
+    document.querySelectorAll('input[name="mobile-move-mode"]').forEach((r) => { r.checked = r.value === this.mode; });
+    Input.setMobileMove(0, 0);
+  },
+  setArrow(dir, down) {
+    const current = this.arrowState || (this.arrowState = { up: false, down: false, left: false, right: false });
+    current[dir] = down;
+    Input.setMobileMove((current.right ? 1 : 0) - (current.left ? 1 : 0), (current.up ? 1 : 0) - (current.down ? 1 : 0));
+  },
+  updateStick(e) {
+    const r = $('mobile-joystick').getBoundingClientRect(), max = 43;
+    const x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2);
+    const len = Math.hypot(x, y), scale = len > max ? max / len : 1;
+    const sx = x * scale, sy = y * scale;
+    $('mobile-knob').style.transform = `translate(${sx}px, ${sy}px)`;
+    Input.setMobileMove(sx / max, -sy / max);
+  },
+  openSettings() { $('mobile-settings').classList.remove('hidden'); Input.setMobileMove(0, 0); },
+  closeSettings() { $('mobile-settings').classList.add('hidden'); this.applyMode(); }
+};
+
 /* ============================================================================
    14. ENTITIES — item drops, arrows, primed TNT, particles, explosions
    ========================================================================== */
@@ -4585,6 +4872,7 @@ const AccountSync = {
       x: player.x,
       y: player.y,
       z: player.z,
+      spawn: player.spawn,
       yaw: player.yaw,
       pitch: player.pitch,
       inventory: player.inventory,
@@ -4753,11 +5041,13 @@ const Menus = {
     const loadDefaultPack = async () => {
       if (!location.protocol.startsWith('http')) return;
       try {
-        const r = await fetch('resourcepack.zip');
+        // Version the URL so browsers do not keep an older resource pack
+        // without the 26.2 copper, spear and trident textures.
+        const r = await fetch('resourcepack.zip?v=26.2');
         if (!r.ok) return;
         const blob = await r.blob();
         if (blob.size < 1024) return;
-        const result = await ResourcePack.load(new File([blob], 'Faithful 32x - 26.2.zip'));
+        const result = await ResourcePack.load(new File([blob], 'Minecraft 26.2.zip'));
         HUD.message(`Faithful 32x: ${result.count}/${result.total} blocos e itens, ${result.entities} entidades`);
       } catch (e) { console.warn('Default resource pack failed:', e); }
     };
@@ -5227,7 +5517,7 @@ const Game = {
     Blocks.resolveTiles(Atlas);
     Events.on('atlasRebuilt', () => Blocks.resolveTiles(Atlas));
     Mesher.init(); ChunkManager.init(this.scene); Entities.init(this.scene); Mobs.init(this.scene); Particles.init(this.scene); PlayerView.init(this.scene, this.camera); Multiplayer.init(this.scene);
-    Sky.init(this.scene); Weather.init(this.scene); Interaction.init(this.scene); Screens.init(); HUD.init(); Chat.init(); Input.init(this.canvas); Menus.init();
+    Sky.init(this.scene); Weather.init(this.scene); Interaction.init(this.scene); Screens.init(); HUD.init(); Chat.init(); Input.init(this.canvas); MobileControls.init(); Menus.init();
     this.last = performance.now();
     requestAnimationFrame((t) => this.loop(t));
     console.log('FP Craft ready. Blocks: ' + Blocks.byId.length + ', items: ' + Items.list.length + ', atlas ' + Atlas.size + 'px');
@@ -5247,7 +5537,10 @@ const Game = {
       const account = window.MINEZERA_PLAYER || {};
       const hasPosition = Number.isFinite(Number(account.pos_x)) && Number.isFinite(Number(account.pos_y)) && Number.isFinite(Number(account.pos_z));
       const spawn = hasPosition ? [Number(account.pos_x), Number(account.pos_y), Number(account.pos_z)] : Terrain.findSpawn();
+      const hasBedSpawn = Number.isFinite(Number(account.spawn_x)) && Number.isFinite(Number(account.spawn_y)) && Number.isFinite(Number(account.spawn_z));
+      const savedSpawn = hasBedSpawn ? [Number(account.spawn_x), Number(account.spawn_y), Number(account.spawn_z)] : spawn.slice();
       Player.reset(spawn);
+      player.spawn = savedSpawn;
       Player.applyProgress(account.nivel, account.exp, account.kills);
       Object.assign(player, {
         x: spawn[0],
@@ -5271,6 +5564,9 @@ const Game = {
       const spawn = Terrain.findSpawn();
       Player.reset(spawn); this.freshSpawn = true;
       if (window.MINEZERA_PLAYER) {
+        const accountSpawn = window.MINEZERA_PLAYER;
+        const hasBedSpawn = Number.isFinite(Number(accountSpawn.spawn_x)) && Number.isFinite(Number(accountSpawn.spawn_y)) && Number.isFinite(Number(accountSpawn.spawn_z));
+        if (hasBedSpawn) player.spawn = [Number(accountSpawn.spawn_x), Number(accountSpawn.spawn_y), Number(accountSpawn.spawn_z)];
         Player.applyProgress(window.MINEZERA_PLAYER.nivel, window.MINEZERA_PLAYER.exp, window.MINEZERA_PLAYER.kills);
         player.health = Player.normalizeStat(window.MINEZERA_PLAYER.hp, player.maxHealth, player.maxHealth);
         player.hunger = Player.normalizeStat(window.MINEZERA_PLAYER.hunger, PLAYER_MAX_HUNGER, PLAYER_MAX_HUNGER);
