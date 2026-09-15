@@ -5734,7 +5734,7 @@ const PlayerView = {
     this.held.rotation.set(-0.85, 0.15, -0.25);
     g.children[4].add(this.held);
     this.fpHeld = new THREE.Group();
-    this.fpHeld.position.set(0.60, -0.52, -0.88);
+    this.fpHeld.position.set(0.58, -0.40, -0.88);
     this.fpHeld.rotation.set(-0.25, 0.05, -0.18);
     camera.add(this.fpHeld);
     this.fpHeld.visible = false;
@@ -5778,14 +5778,14 @@ const PlayerView = {
       tex.generateMipmaps = false;
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide, depthTest: !firstPerson });
       const isTool = item && item.tool;
-      const scale = firstPerson ? 1.15 : 1;
+      const scale = firstPerson ? 0.92 : 1;
       const geo = new THREE.PlaneGeometry((isTool ? 0.5 : 0.38) * scale, (isTool ? 0.5 : 0.38) * scale);
       const mesh = new THREE.Mesh(geo, mat);
       mesh.renderOrder = firstPerson ? 20 : 0;
       mesh.position.set(firstPerson ? 0 : 0.02, firstPerson ? 0 : -0.02, firstPerson ? 0 : -0.05);
-      // Minecraft's first-person tools are held diagonally, with the handle
-      // toward the lower-right instead of showing the icon edge-on.
-      mesh.rotation.set(firstPerson ? (isTool ? -0.08 : 0) : (isTool ? -0.65 : -0.35), firstPerson ? (isTool ? 0.08 : 0) : (isTool ? 0.2 : 0), firstPerson ? (isTool ? -0.72 : 0) : (isTool ? 0.75 : 0.2));
+      // The tool texture is already diagonal. In first person, cancel the
+      // viewmodel's base Z rotation so the blade rises naturally on the right.
+      mesh.rotation.set(firstPerson ? (isTool ? -0.04 : 0) : (isTool ? -0.65 : -0.35), firstPerson ? (isTool ? 0.04 : 0) : (isTool ? 0.2 : 0), firstPerson ? (isTool ? 0.18 : 0) : (isTool ? 0.75 : 0.2));
       return mesh;
     };
     this.held.add(makeItemMesh(false));
@@ -5819,7 +5819,7 @@ const PlayerView = {
       const firstPersonActive = Game.cameraMode === 'first' && Game.running && Game.ready && !p.dead && !!Player.held();
       this.fpHeld.visible = firstPersonActive;
       // Keep the classic Minecraft viewmodel: item only, low and to the right.
-      this.fpHeld.position.set(0.60 - swing * 0.08 - swingCurve * 0.05, -0.52 + swing * 0.25, -0.88 + swing * 0.08);
+      this.fpHeld.position.set(0.58 - swing * 0.08 - swingCurve * 0.05, -0.40 + swing * 0.25, -0.88 + swing * 0.08);
       this.fpHeld.rotation.set(-0.25 + swing * 0.9, 0.05 + swingCurve * 0.18, -0.18 + swing * 0.48 + swingCurve * 0.16);
     }
   },
