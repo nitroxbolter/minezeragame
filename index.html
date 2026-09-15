@@ -388,7 +388,7 @@ const TEST_WORLD_SIZE = 1000;
 const TEST_WORLD_HALF = TEST_WORLD_SIZE / 2;
 const TEST_WORLD_SEED_PREFIX = 'minezera-ilha-biomas-v3-vila';
 const WORLD_GENERATION_VERSION = 3;
-const RESOURCE_PACK_VERSION = '26.2-villagerfix1';
+const RESOURCE_PACK_VERSION = '26.2-mansion-pillager1';
 const VILLAGE_CENTER = Object.freeze({ x: 0, z: 40 });
 // Area around the first-spawn village where players cannot build or break blocks.
 // Keep this value separate so the protected radius can be tuned without changing
@@ -1500,7 +1500,8 @@ const ENTITY_TEXTURE_PATHS = {
   zombie: ['assets/minecraft/textures/entity/zombie/zombie.png'],
   skeleton: ['assets/minecraft/textures/entity/skeleton/skeleton.png'],
   creeper: ['assets/minecraft/textures/entity/creeper/creeper.png'],
-  villager: ['assets/minecraft/textures/entity/villager/villager.png']
+  villager: ['assets/minecraft/textures/entity/villager/villager.png'],
+  pillager: ['assets/minecraft/textures/entity/illager/pillager.png']
 };
 
 const ResourcePack = {
@@ -2085,21 +2086,20 @@ const Terrain = {
       const edge = Math.abs(dx) === half - 1 || Math.abs(dz) === half - 1;
       const x = cx + dx, z = cz + dz;
       if (!edge) {
-        const window = (y === 3 || y === 7) && ((Math.abs(dx) === 6 && Math.abs(dz) < 6) || (Math.abs(dz) === 6 && Math.abs(dx) < 6));
-        set(x, baseY + y, z, window ? B.glass : AIR);
+        set(x, baseY + y, z, AIR);
         continue;
       }
       const frontDoor = dz === -half + 1 && Math.abs(dx) <= 1 && y <= 3;
       if (frontDoor) { clear(x, baseY + y, z); continue; }
       const corner = Math.abs(dx) === half - 1 && Math.abs(dz) === half - 1;
-      set(x, baseY + y, z, corner ? B.spruce_log : B.spruce_planks);
+      const window = (y === 3 || y === 7) && ((Math.abs(dx) === half - 1 && Math.abs(dz) % 6 <= 1) || (Math.abs(dz) === half - 1 && Math.abs(dx) % 6 <= 1));
+      set(x, baseY + y, z, window ? B.glass : corner ? B.spruce_log : B.spruce_planks);
     }
 
-    // Two upper floors and a heavy roof make the landmark recognizable from afar.
+    // Two upper floors and stepped roofs make the landmark recognizable from afar.
     for (const floorY of [5, 9]) for (let dx = -half + 1; dx < half; dx++) for (let dz = -half + 1; dz < half; dz++) set(cx + dx, baseY + floorY, cz + dz, B.spruce_planks);
-    for (let dx = -half; dx <= half; dx++) for (let dz = -half; dz <= half; dz++) {
-      set(cx + dx, baseY + wallHeight + 1, cz + dz, B.cobblestone);
-      if (Math.abs(dx) === half || Math.abs(dz) === half) set(cx + dx, baseY + wallHeight + 2, cz + dz, B.stone_bricks);
+    for (const [roofY, roofHalf, roofBlock] of [[wallHeight + 1, half, B.cobblestone], [wallHeight + 2, half - 2, B.spruce_planks], [wallHeight + 3, half - 4, B.spruce_planks], [wallHeight + 4, half - 6, B.stone_bricks]]) {
+      for (let dx = -roofHalf; dx <= roofHalf; dx++) for (let dz = -roofHalf; dz <= roofHalf; dz++) set(cx + dx, baseY + roofY, cz + dz, roofBlock);
     }
     // Four taller corner towers.
     for (const [tx, tz] of [[-half + 2, -half + 2], [half - 2, -half + 2], [-half + 2, half - 2], [half - 2, half - 2]]) {
@@ -2108,6 +2108,15 @@ const Terrain = {
         set(cx + tx + dx, baseY + y, cz + tz + dz, edge ? B.spruce_log : AIR);
       }
       for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) set(cx + tx + dx, baseY + 16, cz + tz + dz, B.cobblestone);
+    }
+    // Monumental entrance platform and side buttresses.
+    for (let dz = -half - 4; dz < -half + 1; dz++) for (let dx = -4; dx <= 4; dx++) {
+      set(cx + dx, baseY, cz + dz, B.stone_bricks);
+      set(cx + dx, baseY + 1, cz + dz, (Math.abs(dx) <= 2 && dz >= -half - 2) ? B.stone_bricks : AIR);
+    }
+    for (const dx of [-half + 1, half - 1]) for (let y = 1; y <= 7; y++) {
+      set(cx + dx, baseY + y, cz - 8, B.stone_bricks);
+      set(cx + dx, baseY + y, cz + 8, B.stone_bricks);
     }
     set(cx, baseY + 1, cz - half + 1, B.oak_door, 0);
     set(cx, baseY + 2, cz - half + 1, B.oak_door, 1);
@@ -4429,6 +4438,21 @@ const Mobs = {
       this.box(parts.head, 4, 2, 2, 0, -1, -2.5, '#ffffff', { texture: 'chicken', uv: this.cubeUV(14, 0, 4, 2, 2, 64, 32) });
       for (const lx of [-1.5, 1.5]) parts.legs.push(this.box(g, 3, 5, 3, lx, 5, 0, '#ffffff', { pivotTop: true, texture: 'chicken', uv: this.cubeUV(26, 0, 3, 5, 3, 64, 32) }));
       for (const lx of [-3.5, 3.5]) parts.arms.push(this.box(g, 1, 4, 6, lx, 10, 0, '#ffffff', { pivotTop: true, texture: 'chicken', uv: this.cubeUV(24, 13, 1, 4, 6, 64, 32) }));
+    } else if (t === 'pillager') {
+      const tex = { texture: 'pillager' };
+      const pillagerFallback = this.entityTexture('pillager') ? '#ffffff' : '#59616b';
+      // Illagers use the 64x64 humanoid layout from the 26.2 resource pack.
+      parts.legs.push(this.box(g, 4, 12, 4, -2, 12, 0, pillagerFallback, { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
+      parts.legs.push(this.box(g, 4, 12, 4, 2, 12, 0, pillagerFallback, { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
+      parts.body = this.box(g, 8, 12, 6, 0, 18, 0, pillagerFallback, { ...tex, uv: this.cubeUV(16, 20, 8, 12, 6, 64, 64) });
+      this.box(g, 8.6, 18, 6.6, 0, 15, 0, pillagerFallback, { ...tex, uv: this.cubeUV(0, 38, 8, 18, 6, 64, 64) });
+      parts.head = this.box(g, 8, 10, 8, 0, 29, 0, pillagerFallback, { ...tex, uv: this.cubeUV(0, 0, 8, 10, 8, 64, 64), face: face('#8d6957') });
+      const foldedArms = [];
+      foldedArms.push(this.box(g, 4, 8, 4, -6, 19, -1, pillagerFallback, { ...tex, uv: this.cubeUV(44, 22, 4, 8, 4, 64, 64) }));
+      foldedArms.push(this.box(g, 4, 8, 4, 6, 19, -1, pillagerFallback, { ...tex, uv: this.cubeUV(44, 22, 4, 8, 4, 64, 64) }));
+      foldedArms.push(this.box(g, 8, 4, 4, 0, 17, -1, pillagerFallback, { ...tex, uv: this.cubeUV(40, 38, 8, 4, 4, 64, 64) }));
+      parts.foldedArms = foldedArms;
+      g.scale.set(0.9, 0.9, 0.9);
     } else if (t === 'villager') {
       const skin = '#d3a06c';
       const tex = { texture: 'villager' };
@@ -6199,15 +6223,22 @@ const Game = {
     if (this.pillagersSpawned || typeof Mobs === 'undefined' || !MOB_TYPES.pillager) return;
     const cx = PILLAGER_MANSION_CENTER.x, cz = PILLAGER_MANSION_CENTER.z;
     const baseY = Terrain.sample(cx, cz).h;
-    const spots = [[cx - 8, cz - 8], [cx + 8, cz - 8], [cx - 8, cz + 8], [cx + 8, cz + 8], [cx, cz]];
+    // Search the mansion's actual ground floor instead of relying on a few
+    // hard-coded points; this also survives small terrain/structure changes.
+    const spots = [];
+    for (let dx = -16; dx <= 16; dx += 4) for (let dz = -16; dz <= 16; dz += 4) spots.push([cx + dx, cz + dz]);
     let spawned = 0;
     for (const [x, z] of spots) {
       const y = baseY + 1;
       if (!world.isLoaded(x, z) || !Mobs.canStand(x, y, z, MOB_TYPES.pillager)) continue;
       const m = Mobs.spawnMob('pillager', x + 0.5, y, z + 0.5);
       if (m) { m.state = 'wander'; m.stateTimer = 1 + Math.random() * 3; spawned++; }
+      if (spawned >= 6) break;
     }
-    this.pillagersSpawned = spawned > 0;
+    if (spawned > 0) {
+      this.pillagersSpawned = true;
+      HUD.message(`${spawned} pillagers guardam a mansao.`);
+    }
   },
   pause() { if (!this.running) return; AccountSync.save(true); this.paused = true; $('pause').classList.remove('hidden'); Input.unlock(); },
   resume() { this.paused = false; $('pause').classList.add('hidden'); if (!player.dead) Input.lock(); },
