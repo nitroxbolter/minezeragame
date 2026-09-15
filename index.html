@@ -5277,6 +5277,13 @@ const AdminCommands = {
       return;
     }
     if (command === 'tp') {
+      if (message.targetSpawn) {
+        const [x, y, z] = Terrain.findSpawn();
+        Object.assign(player, { x, y, z, vx: 0, vy: 0, vz: 0, fallStart: y });
+        ChunkManager.needsScan = true;
+        HUD.message(`Teleportado para o spawn inicial (${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)})`);
+        return;
+      }
       const x = Number(message.x), y = Number(message.y), z = Number(message.z);
       if (![x, y, z].every(Number.isFinite)) return;
       Object.assign(player, { x, y, z, vx: 0, vy: 0, vz: 0, fallStart: y });

@@ -1474,7 +1474,9 @@ wss.on('connection', (ws, req, user) => {
           action.entity = parsed.entity;
         } else if (parsed.command === 'tp') {
           let position = parsed.coordinates;
-          if (parsed.targetPlayer) {
+          if (parsed.targetSpawn) {
+            action.targetSpawn = true;
+          } else if (parsed.targetPlayer) {
             const targetName = parsed.targetPlayer.toLowerCase();
             const target = [...sockets.values()].find((online) => online.nome.toLowerCase() === targetName);
             if (!target || !target.state) {
@@ -1483,7 +1485,7 @@ wss.on('connection', (ws, req, user) => {
             }
             position = [target.state.x, target.state.y, target.state.z];
           }
-          [action.x, action.y, action.z] = position;
+          if (position) [action.x, action.y, action.z] = position;
         } else if (parsed.command === 'give') {
           action.item = parsed.item;
           action.count = parsed.count;

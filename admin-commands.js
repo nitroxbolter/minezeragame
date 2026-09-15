@@ -1,6 +1,6 @@
 'use strict';
 
-const MOB_TYPES = Object.freeze(['pig', 'cow', 'sheep', 'chicken', 'zombie', 'skeleton', 'creeper']);
+const MOB_TYPES = Object.freeze(['pig', 'cow', 'sheep', 'chicken', 'zombie', 'skeleton', 'pillager', 'creeper']);
 const TIME_VALUES = Object.freeze({ day: 1000, noon: 6000, night: 13000, midnight: 18000 });
 
 const COMMANDS = Object.freeze({
@@ -9,7 +9,7 @@ const COMMANDS = Object.freeze({
   weather: { aliases: ['clima'], usage: '/weather <clear|rain>', description: 'Muda o clima para todos.' },
   killall: { aliases: ['kill-all', 'removerentidades'], usage: '/killall', description: 'Remove mobs, itens, flechas e TNT.' },
   summon: { aliases: ['invocar'], usage: '/summon <mob> [x y z]', description: 'Invoca um mob para todos.' },
-  tp: { aliases: ['teleport', 'teleportar'], usage: '/tp <jogador> ou /tp <x> <y> <z>', description: 'Teleporta o admin para jogador ou coordenadas.' },
+  tp: { aliases: ['teleport', 'teleportar'], usage: '/tp spawn | /tp <jogador> | /tp <x> <y> <z>', description: 'Teleporta ao spawn inicial, para jogador ou coordenadas.' },
   give: { aliases: ['dar'], usage: '/give <item> [quantidade]', description: 'Entrega um item ao admin.' },
   heal: { aliases: ['curar'], usage: '/heal', description: 'Restaura vida, fome e ar.' },
   kill: { aliases: ['matar'], usage: '/kill', description: 'Mata o proprio personagem.' },
@@ -75,6 +75,7 @@ function parseAdminCommand(input) {
     return { ok: true, command: name, entity, coordinates };
   }
   if (name === 'tp') {
+    if (args.length === 1 && String(args[0]).toLowerCase() === 'spawn') return { ok: true, command: name, targetSpawn: true };
     if (args.length === 1) return { ok: true, command: name, targetPlayer: String(args[0]).trim() };
     if (args.length !== 3) return { ok: false, error: command.usage };
     const coordinates = args.map(numberArg);
