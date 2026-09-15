@@ -4340,19 +4340,23 @@ const Mobs = {
       for (const lx of [-1.5, 1.5]) parts.legs.push(this.box(g, 3, 5, 3, lx, 5, 0, '#ffffff', { pivotTop: true, texture: 'chicken', uv: this.cubeUV(26, 0, 3, 5, 3, 64, 32) }));
       for (const lx of [-3.5, 3.5]) parts.arms.push(this.box(g, 1, 4, 6, lx, 10, 0, '#ffffff', { pivotTop: true, texture: 'chicken', uv: this.cubeUV(24, 13, 1, 4, 6, 64, 32) }));
     } else if (t === 'villager') {
-      const robe = '#6f4b2f', robeDark = '#4f3424', skin = '#d3a06c', hat = '#5b3a22';
+      const skin = '#d3a06c';
       const tex = { texture: 'villager' };
-      parts.body = this.box(g, 8, 12, 6, 0, 14, 0, '#ffffff', { ...tex, uv: this.cubeUV(16, 16, 8, 12, 6, 64, 64) });
-      parts.head = this.box(g, 8, 8, 8, 0, 25.5, 0, '#ffffff', { ...tex, uv: this.cubeUV(0, 0, 8, 8, 8, 64, 64), face: face(skin) });
-      this.box(parts.head, 3, 4, 3, 0, -0.5, -4.5, '#b47b51');
-      this.box(parts.head, 10, 2, 10, 0, 5, 0, hat);
-      parts.arms.push(this.box(g, 4, 11, 4, -3.2, 21.5, -1.4, '#ffffff', { ...tex, pivotTop: true, uv: this.cubeUV(40, 16, 4, 12, 4, 64, 64) }));
-      parts.arms.push(this.box(g, 4, 11, 4, 3.2, 21.5, -1.4, '#ffffff', { ...tex, pivotTop: true, uv: this.cubeUV(40, 16, 4, 12, 4, 64, 64) }));
-      parts.arms[0].rotation.z = -0.42; parts.arms[1].rotation.z = 0.42;
-      this.box(g, 7, 2, 6, 0, 11, -0.15, robeDark);
-      parts.legs.push(this.box(g, 4, 6, 4, -2, 10.5, 0, '#ffffff', { ...tex, pivotTop: true, uv: this.cubeUV(0, 16, 4, 6, 4, 64, 64) }));
-      parts.legs.push(this.box(g, 4, 6, 4, 2, 10.5, 0, '#ffffff', { ...tex, pivotTop: true, uv: this.cubeUV(0, 16, 4, 6, 4, 64, 64) }));
-      g.scale.set(0.92, 0.92, 0.92);
+      // Layout oficial do VillagerModel: cabeça 8x10, corpo em (16,20),
+      // túnica em (0,38), braços unidos e pernas de 12 pixels.
+      parts.legs.push(this.box(g, 4, 12, 4, -2, 12, 0, '#ffffff', { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
+      parts.legs.push(this.box(g, 4, 12, 4, 2, 12, 0, '#ffffff', { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
+      parts.body = this.box(g, 8, 12, 6, 0, 18, 0, '#ffffff', { ...tex, uv: this.cubeUV(16, 20, 8, 12, 6, 64, 64) });
+      this.box(g, 8.6, 18, 6.6, 0, 15, 0, '#ffffff', { ...tex, uv: this.cubeUV(0, 38, 8, 18, 6, 64, 64) });
+      parts.head = this.box(g, 8, 10, 8, 0, 29, 0, '#ffffff', { ...tex, uv: this.cubeUV(0, 0, 8, 10, 8, 64, 64), face: face(skin) });
+      this.box(g, 9, 11, 9, 0, 29, 0, '#ffffff', { ...tex, uv: this.cubeUV(32, 0, 8, 10, 8, 64, 64) });
+      this.box(parts.head, 2, 4, 2, 0, -4, -5, '#b47b51', { ...tex, uv: this.cubeUV(24, 0, 2, 4, 2, 64, 64) });
+      const foldedArms = [];
+      foldedArms.push(this.box(g, 4, 8, 4, -6, 19, -1, '#ffffff', { ...tex, uv: this.cubeUV(44, 22, 4, 8, 4, 64, 64) }));
+      foldedArms.push(this.box(g, 4, 8, 4, 6, 19, -1, '#ffffff', { ...tex, uv: this.cubeUV(44, 22, 4, 8, 4, 64, 64) }));
+      foldedArms.push(this.box(g, 8, 4, 4, 0, 17, -1, '#ffffff', { ...tex, uv: this.cubeUV(40, 38, 8, 4, 4, 64, 64) }));
+      parts.foldedArms = foldedArms;
+      g.scale.set(0.9, 0.9, 0.9);
     } else if (t === 'creeper') {
       parts.body = this.box(g, 8, 12, 4, 0, 12, 0, '#ffffff', { texture: 'creeper', uv: this.cubeUV(16, 16, 8, 12, 4, 64, 32) });
       parts.head = this.box(g, 8, 8, 8, 0, 22, 0, '#ffffff', { texture: 'creeper', uv: this.cubeUV(0, 0, 8, 8, 8, 64, 32), face: face('#4aa64a') });
