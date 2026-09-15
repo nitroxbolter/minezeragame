@@ -388,6 +388,7 @@ const TEST_WORLD_SIZE = 1000;
 const TEST_WORLD_HALF = TEST_WORLD_SIZE / 2;
 const TEST_WORLD_SEED_PREFIX = 'minezera-ilha-biomas-v3-vila';
 const WORLD_GENERATION_VERSION = 3;
+const RESOURCE_PACK_VERSION = '26.2-villagerfix1';
 const VILLAGE_CENTER = Object.freeze({ x: 0, z: 40 });
 // Area around the first-spawn village where players cannot build or break blocks.
 // Keep this value separate so the protected radius can be tuned without changing
@@ -4431,19 +4432,20 @@ const Mobs = {
     } else if (t === 'villager') {
       const skin = '#d3a06c';
       const tex = { texture: 'villager' };
+      const villagerFallback = this.entityTexture('villager') ? '#ffffff' : '#795437';
       // Layout oficial do VillagerModel: cabeça 8x10, corpo em (16,20),
       // túnica em (0,38), braços unidos e pernas de 12 pixels.
-      parts.legs.push(this.box(g, 4, 12, 4, -2, 12, 0, '#ffffff', { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
-      parts.legs.push(this.box(g, 4, 12, 4, 2, 12, 0, '#ffffff', { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
-      parts.body = this.box(g, 8, 12, 6, 0, 18, 0, '#ffffff', { ...tex, uv: this.cubeUV(16, 20, 8, 12, 6, 64, 64) });
-      this.box(g, 8.6, 18, 6.6, 0, 15, 0, '#ffffff', { ...tex, uv: this.cubeUV(0, 38, 8, 18, 6, 64, 64) });
-      parts.head = this.box(g, 8, 10, 8, 0, 29, 0, '#ffffff', { ...tex, uv: this.cubeUV(0, 0, 8, 10, 8, 64, 64), face: face(skin) });
-      this.box(g, 9, 11, 9, 0, 29, 0, '#ffffff', { ...tex, uv: this.cubeUV(32, 0, 8, 10, 8, 64, 64) });
+      parts.legs.push(this.box(g, 4, 12, 4, -2, 12, 0, villagerFallback, { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
+      parts.legs.push(this.box(g, 4, 12, 4, 2, 12, 0, villagerFallback, { ...tex, pivotTop: true, uv: this.cubeUV(0, 22, 4, 12, 4, 64, 64) }));
+      parts.body = this.box(g, 8, 12, 6, 0, 18, 0, villagerFallback, { ...tex, uv: this.cubeUV(16, 20, 8, 12, 6, 64, 64) });
+      this.box(g, 8.6, 18, 6.6, 0, 15, 0, villagerFallback, { ...tex, uv: this.cubeUV(0, 38, 8, 18, 6, 64, 64) });
+      parts.head = this.box(g, 8, 10, 8, 0, 29, 0, villagerFallback, { ...tex, uv: this.cubeUV(0, 0, 8, 10, 8, 64, 64), face: face(skin) });
+      this.box(g, 9, 11, 9, 0, 29, 0, villagerFallback, { ...tex, uv: this.cubeUV(32, 0, 8, 10, 8, 64, 64) });
       this.box(parts.head, 2, 4, 2, 0, -4, -5, '#b47b51', { ...tex, uv: this.cubeUV(24, 0, 2, 4, 2, 64, 64) });
       const foldedArms = [];
-      foldedArms.push(this.box(g, 4, 8, 4, -6, 19, -1, '#ffffff', { ...tex, uv: this.cubeUV(44, 22, 4, 8, 4, 64, 64) }));
-      foldedArms.push(this.box(g, 4, 8, 4, 6, 19, -1, '#ffffff', { ...tex, uv: this.cubeUV(44, 22, 4, 8, 4, 64, 64) }));
-      foldedArms.push(this.box(g, 8, 4, 4, 0, 17, -1, '#ffffff', { ...tex, uv: this.cubeUV(40, 38, 8, 4, 4, 64, 64) }));
+      foldedArms.push(this.box(g, 4, 8, 4, -6, 19, -1, villagerFallback, { ...tex, uv: this.cubeUV(44, 22, 4, 8, 4, 64, 64) }));
+      foldedArms.push(this.box(g, 4, 8, 4, 6, 19, -1, villagerFallback, { ...tex, uv: this.cubeUV(44, 22, 4, 8, 4, 64, 64) }));
+      foldedArms.push(this.box(g, 8, 4, 4, 0, 17, -1, villagerFallback, { ...tex, uv: this.cubeUV(40, 38, 8, 4, 4, 64, 64) }));
       parts.foldedArms = foldedArms;
       g.scale.set(0.9, 0.9, 0.9);
     } else if (t === 'creeper') {
@@ -5592,9 +5594,9 @@ const Menus = {
     const loadDefaultPack = async () => {
       if (!location.protocol.startsWith('http')) return;
       try {
-        // Version the URL so browsers do not keep an older resource pack
-        // without the 26.2 copper, spear and trident textures.
-        const r = await fetch('resourcepack.zip?v=26.2-liquid3');
+        // Version the URL and bypass HTTP cache so entity textures from a new
+        // pack are not replaced by a stale cached villager/skeleton image.
+        const r = await fetch(`resourcepack.zip?v=${RESOURCE_PACK_VERSION}`, { cache: 'no-store' });
         if (!r.ok) return;
         const blob = await r.blob();
         if (blob.size < 1024) return;
