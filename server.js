@@ -54,6 +54,13 @@ const CLASSES = {
   4: 'Artesao'
 };
 
+const PLAYER_SKINS = {
+  security: 'security-guard-green.png',
+  pearson: 'swag-24334585.png',
+  sayori: 'sayori-ddlc-eye-tweak-2.png',
+  clouds: 'clouds-24335191.png'
+};
+
 let pool;
 const sessions = new Map();
 const sockets = new Map();
@@ -192,6 +199,17 @@ async function migrateDatabase() {
     await query('ALTER TABLE contas ADD COLUMN tipo TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER senha_hash');
     console.log('[db] coluna contas.tipo criada');
   }
+  const skinColumns = await query(
+    `SELECT COUNT(*) AS total
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'personagens'
+       AND COLUMN_NAME = 'skin_id'`
+  );
+  if (!Number(skinColumns[0].total)) {
+    await query("ALTER TABLE personagens ADD COLUMN skin_id VARCHAR(20) NOT NULL DEFAULT 'security' AFTER hotbar");
+    console.log('[db] coluna personagens.skin_id criada');
+  }
   const spawnColumns = ['spawn_x', 'spawn_y', 'spawn_z'];
   for (const column of spawnColumns) {
     const exists = await query(
@@ -246,6 +264,7 @@ async function currentUser(req) {
        p.pitch,
        p.inventory_json,
        p.hotbar,
+       p.skin_id,
        p.skill_lenhador,
        p.skill_cooking,
        p.skill_mining,
@@ -271,6 +290,23 @@ function validLogin(login) {
 
 function validCharacterName(name) {
   return /^[a-zA-Z0-9_ ]{3,40}$/.test(name);
+}
+
+function validSkinId(value) {
+  return Object.hasOwn(PLAYER_SKINS, String(value || ''));
+}
+
+function normalizeSkinId(value) {
+  return validSkinId(value) ? String(value) : 'security';
+}
+
+async function topPlayers() {
+  return query(
+    `SELECT nome, nivel, exp, skin_id
+     FROM personagens
+     ORDER BY nivel DESC, exp DESC, kills DESC, atualizado_em ASC
+     LIMIT 5`
+  );
 }
 
 async function readBody(req, limit = 1024 * 1024) {
@@ -348,30 +384,28 @@ function parseInventory(value, fallback = null) {
   }
 }
 
-function loginPage({ user = null, error = '', csrf = newToken() } = {}) {
-  const updatesPanel = `
-    <aside class="updates-card" aria-label="Atualizacoes">
-      <div class="updates-track">
-        <article class="update-slide">
-          <span>Atualizacoes</span>
-          <h2>Multiplayer online</h2>
-          <p>Jogadores agora aparecem no mesmo mundo com nome, skin escolhida e movimento em tempo real.</p>
-        </article>
-        <article class="update-slide">
-          <span>Atualizacoes</span>
-          <h2>PVP ativado</h2>
-          <p>Ataques entre jogadores causam dano e aparecem no console do servidor para acompanhamento.</p>
-        </article>
-        <article class="update-slide">
-          <span>Atualizacoes</span>
-          <h2>Painel admin</h2>
-          <p>Contas tipo 3 podem abrir o painel para controlar servidor, contas, console e itens.</p>
-        </article>
+function loginPage({ user = null, error = '', csrf = newToken(), ranking = [] } = {}) {
+  const rankingRows = ranking.map((player, index) => {
+    const skin = PLAYER_SKINS[normalizeSkinId(player.skin_id)];
+    return `<li>
+      <strong class="ranking-position">#${index + 1}</strong>
+      <span class="ranking-skin" style="--player-skin: url('${htmlEscape(appUrl(`/assets/${skin}`))}')" aria-hidden="true"></span>
+      <span class="ranking-player">
+        <strong>${htmlEscape(player.nome)}</strong>
+        <small>Nível ${Number(player.nivel)}</small>
+      </span>
+    </li>`;
+  }).join('');
+  const rankingPanel = `
+    <aside class="ranking-card" aria-labelledby="ranking-title">
+      <div class="ranking-heading">
+        <span>Ranking</span>
+        <h2 id="ranking-title">Top 5 jogadores</h2>
       </div>
-      <div class="update-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+      ${rankingRows ? `<ol class="ranking-list">${rankingRows}</ol>` : '<p class="ranking-empty">Os primeiros jogadores aparecerão aqui.</p>'}
     </aside>`;
   const content = user ? `
-    <div class="auth-home">
+    <div class="login-home">
     <section class="auth-card">
       <h1>Minezera</h1>
       <p>Logado como ${htmlEscape(user.login)}.</p>
@@ -382,9 +416,9 @@ function loginPage({ user = null, error = '', csrf = newToken() } = {}) {
         <a class="link" href="${htmlEscape(appUrl('/logout'))}">Sair</a>
       </div>
     </section>
-    ${updatesPanel}
+    ${rankingPanel}
     </div>` : `
-    <div class="auth-home">
+    <div class="login-home">
     <section class="auth-card">
       <h1>Minezera</h1>
       <p>Entre para autenticar sua conta antes de abrir o jogo.</p>
@@ -399,7 +433,7 @@ function loginPage({ user = null, error = '', csrf = newToken() } = {}) {
       </form>
       <a class="link" href="${htmlEscape(appUrl('/registrar'))}">Criar uma conta</a>
     </section>
-    ${updatesPanel}
+    ${rankingPanel}
     </div>`;
   return layout('Minezera - Login', content);
 }
@@ -811,13 +845,13 @@ async function handleLogin(req, res) {
   requireCsrf(session, form);
   const login = String(form.login || '').trim();
   const senha = String(form.senha || '');
-  if (!login || !senha) return sendHtml(res, loginPage({ error: 'Preencha login e senha.', csrf: session.csrf }), 400);
+  if (!login || !senha) return sendHtml(res, loginPage({ error: 'Preencha login e senha.', csrf: session.csrf, ranking: await topPlayers() }), 400);
 
   const rows = await query('SELECT id, senha_hash, tipo FROM contas WHERE login = ?', [login]);
   const conta = rows[0];
   const hash = conta ? String(conta.senha_hash).replace(/^\$2y\$/, '$2b$') : '';
   const ok = conta && await bcrypt.compare(senha, hash);
-  if (!ok) return sendHtml(res, loginPage({ error: 'Login ou senha incorretos.', csrf: session.csrf }), 401);
+  if (!ok) return sendHtml(res, loginPage({ error: 'Login ou senha incorretos.', csrf: session.csrf, ranking: await topPlayers() }), 401);
 
   const newSession = createSession(Number(conta.id));
   res.setHeader('Set-Cookie', cookieHeader(newSession.id));
@@ -892,6 +926,7 @@ function publicPlayer(user) {
     pitch: Number(user.pitch),
     inventory: parseInventory(user.inventory_json),
     hotbar: Number(user.hotbar),
+    skin: normalizeSkinId(user.skin_id),
     kills: Number(user.kills)
   };
 }
@@ -946,6 +981,7 @@ async function handlePersonagemApi(req, res) {
       pitch: Number(user.pitch),
       inventario: parseInventory(user.inventory_json),
       hotbar: Number(user.hotbar),
+      skin: normalizeSkinId(user.skin_id),
       skills: {
         lenhador: Number(user.skill_lenhador),
         cooking: Number(user.skill_cooking),
@@ -967,6 +1003,7 @@ async function handleSavePersonagemApi(req, res) {
   const inventory = Array.isArray(payload.inventory) ? JSON.stringify(payload.inventory.slice(0, 36)) : null;
   const requestedSpawn = Array.isArray(payload.spawn) ? payload.spawn.slice(0, 3).map(Number) : null;
   const validSpawn = requestedSpawn && requestedSpawn.length === 3 && requestedSpawn.every(Number.isFinite);
+  const skinId = validSkinId(payload.skin) ? String(payload.skin) : normalizeSkinId(user.skin_id);
   await query(
     `UPDATE personagens
      SET dias_jogados = GREATEST(dias_jogados, ?),
@@ -984,6 +1021,7 @@ async function handleSavePersonagemApi(req, res) {
          pitch = ?,
          inventory_json = COALESCE(?, inventory_json),
          hotbar = ?,
+         skin_id = ?,
          kills = GREATEST(kills, ?)
      WHERE conta_id = ?`,
     [
@@ -1002,6 +1040,7 @@ async function handleSavePersonagemApi(req, res) {
       payload.pitch !== undefined ? Number(payload.pitch) : Number(user.pitch),
       inventory,
       Math.max(0, Math.min(8, Number.parseInt(payload.hotbar ?? user.hotbar, 10) || 0)),
+      skinId,
       Math.max(0, Math.min(999999999, Number.parseInt(payload.kills ?? user.kills, 10) || 0)),
       Number(user.conta_id)
     ]
@@ -1286,7 +1325,7 @@ async function route(req, res) {
   if (method === 'GET' && (pathname === '/' || pathname === '/index.php' || pathname === '/login')) {
     const user = await currentUser(req);
     const session = ensureSessionCookie(req, res);
-    return sendHtml(res, loginPage({ user, csrf: session.csrf }));
+    return sendHtml(res, loginPage({ user, csrf: session.csrf, ranking: await topPlayers() }));
   }
   if (req.method === 'POST' && (pathname === '/login' || pathname === '/index.php')) return handleLogin(req, res);
   if (method === 'GET' && (pathname === '/registrar' || pathname === '/login/registrar.php')) {
