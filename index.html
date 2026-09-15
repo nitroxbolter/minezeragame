@@ -5734,7 +5734,7 @@ const PlayerView = {
     this.held.rotation.set(-0.85, 0.15, -0.25);
     g.children[4].add(this.held);
     this.fpHeld = new THREE.Group();
-    this.fpHeld.position.set(0.66, -0.37, -0.88);
+    this.fpHeld.position.set(0.81, -0.36, -0.88);
     this.fpHeld.rotation.set(-0.25, 0.05, -0.18);
     camera.add(this.fpHeld);
     this.fpHeld.visible = false;
@@ -5771,21 +5771,73 @@ const PlayerView = {
     };
     clear(this.held); clear(this.fpHeld);
     if (!name) return;
+    const makeExtrudedTool = (item, size) => {
+      const texName = item && item.tex;
+      const tile = texName ? Atlas.indexOf.get(texName) : undefined;
+      if (tile === undefined || !Atlas.canvas) return null;
+      const res = Atlas.tileRes;
+      const sx = (tile % Atlas.tilesPerRow) * res;
+      const sy = floor(tile / Atlas.tilesPerRow) * res;
+      const pixels = Atlas.canvas.getContext('2d', { willReadFrequently: true }).getImageData(sx, sy, res, res).data;
+      const positions = [], colors = [];
+      const opaque = (x, y) => x >= 0 && y >= 0 && x < res && y < res && pixels[(y * res + x) * 4 + 3] > 24;
+      const colour = (x, y, shade = 1) => {
+        const p = (y * res + x) * 4;
+        return [pixels[p] / 255 * shade, pixels[p + 1] / 255 * shade, pixels[p + 2] / 255 * shade];
+      };
+      const quad = (a, b, c, d, rgb) => {
+        for (const v of [a, b, c, a, c, d]) {
+          positions.push(v[0], v[1], v[2]);
+          colors.push(rgb[0], rgb[1], rgb[2]);
+        }
+      };
+      const pixel = size / res;
+      const depth = pixel * 1.15;
+      const front = depth / 2, back = -front;
+      for (let y = 0; y < res; y++) for (let x = 0; x < res; x++) {
+        if (!opaque(x, y)) continue;
+        const x0 = -size / 2 + x * pixel, x1 = x0 + pixel;
+        const y1 = size / 2 - y * pixel, y0 = y1 - pixel;
+        quad([x0, y0, front], [x1, y0, front], [x1, y1, front], [x0, y1, front], colour(x, y));
+        quad([x1, y0, back], [x0, y0, back], [x0, y1, back], [x1, y1, back], colour(x, y, 0.68));
+        const edge = colour(x, y, 0.52);
+        if (!opaque(x - 1, y)) quad([x0, y0, back], [x0, y0, front], [x0, y1, front], [x0, y1, back], edge);
+        if (!opaque(x + 1, y)) quad([x1, y0, front], [x1, y0, back], [x1, y1, back], [x1, y1, front], edge);
+        if (!opaque(x, y - 1)) quad([x0, y1, front], [x1, y1, front], [x1, y1, back], [x0, y1, back], colour(x, y, 0.62));
+        if (!opaque(x, y + 1)) quad([x0, y0, back], [x1, y0, back], [x1, y0, front], [x0, y0, front], colour(x, y, 0.42));
+      }
+      if (!positions.length) return null;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      geo.computeBoundingSphere();
+      const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, depthTest: false });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.renderOrder = 20;
+      return mesh;
+    };
     const makeItemMesh = (firstPerson) => {
       const item = Items.get(name);
+      const isTool = item && item.tool;
+      if (firstPerson && isTool) {
+        const model = makeExtrudedTool(item, 0.54);
+        if (model) {
+          // The official handheld pose is almost vertical, rotated in depth
+          // and anchored against the right edge of the first-person view.
+          model.rotation.set(-0.10, -0.45, -0.20);
+          return model;
+        }
+      }
       const tex = new THREE.TextureLoader().load(Atlas.getIcon(name));
       tex.magFilter = tex.minFilter = THREE.NearestFilter;
       tex.generateMipmaps = false;
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide, depthTest: !firstPerson });
-      const isTool = item && item.tool;
       const scale = firstPerson ? 1.05 : 1;
       const geo = new THREE.PlaneGeometry((isTool ? 0.5 : 0.38) * scale, (isTool ? 0.5 : 0.38) * scale);
       const mesh = new THREE.Mesh(geo, mat);
       mesh.renderOrder = firstPerson ? 20 : 0;
       mesh.position.set(firstPerson ? 0 : 0.02, firstPerson ? 0 : -0.02, firstPerson ? 0 : -0.05);
-      // Handheld tools use Minecraft's three-quarter pose: raised on the
-      // right, slightly turned in depth and leaning inward instead of flat.
-      mesh.rotation.set(firstPerson ? (isTool ? -0.10 : 0) : (isTool ? -0.65 : -0.35), firstPerson ? (isTool ? -0.32 : 0) : (isTool ? 0.2 : 0), firstPerson ? (isTool ? 0.06 : 0) : (isTool ? 0.75 : 0.2));
+      mesh.rotation.set(firstPerson ? 0 : (isTool ? -0.65 : -0.35), firstPerson ? 0 : (isTool ? 0.2 : 0), firstPerson ? 0 : (isTool ? 0.75 : 0.2));
       return mesh;
     };
     this.held.add(makeItemMesh(false));
@@ -5819,7 +5871,7 @@ const PlayerView = {
       const firstPersonActive = Game.cameraMode === 'first' && Game.running && Game.ready && !p.dead && !!Player.held();
       this.fpHeld.visible = firstPersonActive;
       // Keep the classic Minecraft viewmodel: item only, low and to the right.
-      this.fpHeld.position.set(0.66 - swing * 0.08 - swingCurve * 0.05, -0.37 + swing * 0.25, -0.88 + swing * 0.08);
+      this.fpHeld.position.set(0.81 - swing * 0.08 - swingCurve * 0.05, -0.36 + swing * 0.25, -0.88 + swing * 0.08);
       this.fpHeld.rotation.set(-0.25 + swing * 0.9, 0.05 + swingCurve * 0.18, -0.18 + swing * 0.48 + swingCurve * 0.16);
     }
   },
