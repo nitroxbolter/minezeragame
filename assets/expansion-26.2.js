@@ -516,5 +516,5 @@
   const style = document.createElement('style');
   style.textContent = '.expansion-action{margin:4px;white-space:normal;max-width:230px}#screen-panel small{font:11px monospace;color:#333}#screen-panel .col{gap:6px}';
   document.head.appendChild(style);
-  window.MINEZERA_EXPANSION_VERSION = '26.2.12';
+  window.MINEZERA_EXPANSION_VERSION = '26.2.13';
 })();
