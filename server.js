@@ -105,6 +105,19 @@ const ADMIN_MOB_CATALOG = [
   { id: 'vindicator', name: 'Vindicator', kind: 'Hostil', health: 24, damage: 7, element: 'Nenhum', speed: 2.5, spawn: 'Invasão' }
 ];
 
+const ADMIN_MOB_IMAGES = Object.freeze({
+  pig: 'pig_temperate.png', cow: 'cow_temperate.png', sheep: 'sheep.png', chicken: 'chicken_temperate.png',
+  zombie: 'zombie.png', skeleton: 'skeleton.png', creeper: 'creeper.png', villager: 'villager.png',
+  pillager: 'pillager.png', wolf: 'wolf_woods.png', cat: 'cat_tabby.png', horse: 'horse_brown.png', bee: 'bee.png',
+  zombie_villager: 'zombie_villager.png', husk: 'husk.png', drowned: 'drowned.png', witch: 'witch.png',
+  enderman: 'enderman.png', blaze: 'blaze.png', ghast: 'ghast.png', spider: 'spider.png', cave_spider: 'cave_spider.png',
+  slime: 'slime.png', magma_cube: 'magmacube.png', silverfish: 'silverfish.png', guardian: 'guardian.png',
+  phantom: 'phantom.png', polar_bear: 'polarbear.png', rabbit: 'rabbit_white.png', bat: 'bat.png',
+  iron_golem: 'iron_golem.png', wandering_trader: 'wandering_trader.png', goat: 'goat.png', fox: 'fox.png',
+  wither_skeleton: 'wither_skeleton.png', piglin: 'piglin.png', ravager: 'ravager.png', vex: 'vex.png',
+  illusioner: 'illusioner.png', evoker: 'evoker.png', vindicator: 'vindicator.png'
+});
+
 let pool;
 const sessions = new Map();
 const sockets = new Map();
@@ -829,10 +842,11 @@ async function adminPage(user, { tab = 'servidor', message = '', sort = 'name', 
     const aggressive = ADMIN_MOB_CATALOG.filter((mob) => Number(mob.damage || 0) > 0).sort(compareMobs);
     const passive = ADMIN_MOB_CATALOG.filter((mob) => Number(mob.damage || 0) <= 0).sort(compareMobs);
     const mobTable = (title, mobs) => `<section class="mob-group"><h3>${title} <span>${mobs.length}</span></h3><div class="mobs-table-wrap"><table class="mobs-table">
-        <thead><tr><th>Mob</th><th>ID</th><th>Tipo</th><th>${sortLink('health', 'Vida')}</th><th>${sortLink('damage', 'Dano')}</th><th>Elemental</th><th>${sortLink('speed', 'Velocidade')}</th><th>Geração</th><th>Status</th></tr></thead>
+        <thead><tr><th>Mob</th><th>ID</th><th>Imagem</th><th>Tipo</th><th>${sortLink('health', 'Vida')}</th><th>${sortLink('damage', 'Dano')}</th><th>Elemental</th><th>${sortLink('speed', 'Velocidade')}</th><th>Geração</th><th>Status</th></tr></thead>
         <tbody>${mobs.map((mob) => `<tr>
           <td><strong>${htmlEscape(mob.name)}</strong></td>
           <td><code>${htmlEscape(mob.id)}</code></td>
+          <td><code>${htmlEscape(ADMIN_MOB_IMAGES[mob.id] || 'não mapeada')}</code></td>
           <td>${htmlEscape(mob.kind)}</td>
           <td>${Number(mob.health)}</td>
           <td>${Number(mob.damage || 0)}</td>
