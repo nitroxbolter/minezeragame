@@ -117,6 +117,21 @@ const ADMIN_MOB_IMAGES = Object.freeze({
   wither_skeleton: 'wither_skeleton.png', piglin: 'piglin.png', ravager: 'ravager.png', vex: 'vex.png',
   illusioner: 'illusioner.png', evoker: 'evoker.png', vindicator: 'vindicator.png'
 });
+const ADMIN_MOB_SOUNDS = Object.freeze({
+  pig: 'mob/pig/say1.ogg, say2.ogg, say3.ogg',
+  cow: 'mob/cow/say1.ogg, say2.ogg, say3.ogg, say4.ogg',
+  sheep: 'mob/sheep/say1.ogg, say2.ogg, say3.ogg',
+  chicken: 'mob/chicken/say1.ogg, say2.ogg, say3.ogg',
+  zombie: 'mob/zombie/say1.ogg, say2.ogg, say3.ogg',
+  skeleton: 'mob/skeleton/say1.ogg, say2.ogg, say3.ogg',
+  creeper: 'mob/creeper/say1.ogg, say2.ogg, say3.ogg, say4.ogg',
+  villager: 'mob/villager/idle1.ogg, idle2.ogg, idle3.ogg',
+  pillager: 'mob/pillager/idle1.ogg, idle2.ogg, idle3.ogg, idle4.ogg',
+  wolf: 'mob/wolf/classic/bark1.ogg, bark2.ogg, bark3.ogg',
+  cat: 'mob/cat/meow1.ogg, meow2.ogg, meow3.ogg, meow4.ogg',
+  horse: 'mob/horse/idle1.ogg, idle2.ogg, idle3.ogg',
+  bee: 'mob/bee/loop1.ogg, loop2.ogg, loop3.ogg'
+});
 
 let pool;
 const sessions = new Map();
@@ -842,11 +857,12 @@ async function adminPage(user, { tab = 'servidor', message = '', sort = 'name', 
     const aggressive = ADMIN_MOB_CATALOG.filter((mob) => Number(mob.damage || 0) > 0).sort(compareMobs);
     const passive = ADMIN_MOB_CATALOG.filter((mob) => Number(mob.damage || 0) <= 0).sort(compareMobs);
     const mobTable = (title, mobs) => `<section class="mob-group"><h3>${title} <span>${mobs.length}</span></h3><div class="mobs-table-wrap"><table class="mobs-table">
-        <thead><tr><th>Mob</th><th>ID</th><th>Imagem</th><th>Tipo</th><th>${sortLink('health', 'Vida')}</th><th>${sortLink('damage', 'Dano')}</th><th>Elemental</th><th>${sortLink('speed', 'Velocidade')}</th><th>Geração</th><th>Status</th></tr></thead>
+        <thead><tr><th>Mob</th><th>ID</th><th>Imagem</th><th>Som</th><th>Tipo</th><th>${sortLink('health', 'Vida')}</th><th>${sortLink('damage', 'Dano')}</th><th>Elemental</th><th>${sortLink('speed', 'Velocidade')}</th><th>Geração</th><th>Status</th></tr></thead>
         <tbody>${mobs.map((mob) => `<tr>
           <td><strong>${htmlEscape(mob.name)}</strong></td>
           <td><code>${htmlEscape(mob.id)}</code></td>
           <td><code>${htmlEscape(ADMIN_MOB_IMAGES[mob.id] || 'não mapeada')}</code></td>
+          <td><code>${htmlEscape(ADMIN_MOB_SOUNDS[mob.id] || 'não configurado')}</code></td>
           <td>${htmlEscape(mob.kind)}</td>
           <td>${Number(mob.health)}</td>
           <td>${Number(mob.damage || 0)}</td>
