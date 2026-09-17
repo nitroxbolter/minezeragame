@@ -53,6 +53,7 @@ Built with [Three.js](https://threejs.org/) (r128) and [JSZip](https://stuk.gith
 **Resource packs**
 - Loads standard Minecraft Java resource packs (`.zip`). Block and item textures are matched by vanilla file name; 16x, 32x and 64x packs are handled; animated textures use their first frame; OptiFine/MCPatcher assets and `.mcmeta` files are ignored; legacy (1.12) names are aliased.
 - Anything a pack does not provide falls back to procedurally generated 16x16 pixel art, so the game is fully playable with zero external files.
+- Entity models now use the baked geometry and per-face UVs extracted from the local Minecraft Java 26.2 classes. Run `npm run import:minecraft-models` after replacing the `26.2/` reference folder to regenerate `assets/entity-models-26.2.json`; the browser only receives this renderer-neutral manifest and remains responsible for display.
 
 ## Controls
 

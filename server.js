@@ -8,7 +8,10 @@ const { URL } = require('node:url');
 const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
 const WebSocket = require('ws');
-const { helpText, parseAdminCommand } = require('./admin-commands');
+const { helpText, parseAdminCommand, MOB_TYPES } = require('./admin-commands');
+const MOB_SOUND_SPECS = require('./assets/mob-sounds-26.2');
+const { createMobAuthority } = require('./server-mobs');
+const MOB_SPAWN_CONFIG = require('./config/mob-spawn.json');
 
 const ROOT = __dirname;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -117,21 +120,10 @@ const ADMIN_MOB_IMAGES = Object.freeze({
   wither_skeleton: 'wither_skeleton.png', piglin: 'piglin.png', ravager: 'ravager.png', vex: 'vex.png',
   illusioner: 'illusioner.png', evoker: 'evoker.png', vindicator: 'vindicator.png'
 });
-const ADMIN_MOB_SOUNDS = Object.freeze({
-  pig: 'mob/pig/say1.ogg, say2.ogg, say3.ogg',
-  cow: 'mob/cow/say1.ogg, say2.ogg, say3.ogg, say4.ogg',
-  sheep: 'mob/sheep/say1.ogg, say2.ogg, say3.ogg',
-  chicken: 'mob/chicken/say1.ogg, say2.ogg, say3.ogg',
-  zombie: 'mob/zombie/say1.ogg, say2.ogg, say3.ogg',
-  skeleton: 'mob/skeleton/say1.ogg, say2.ogg, say3.ogg',
-  creeper: 'mob/creeper/say1.ogg, say2.ogg, say3.ogg, say4.ogg',
-  villager: 'mob/villager/idle1.ogg, idle2.ogg, idle3.ogg',
-  pillager: 'mob/pillager/idle1.ogg, idle2.ogg, idle3.ogg, idle4.ogg',
-  wolf: 'mob/wolf/classic/bark1.ogg, bark2.ogg, bark3.ogg',
-  cat: 'mob/cat/meow1.ogg, meow2.ogg, meow3.ogg, meow4.ogg',
-  horse: 'mob/horse/idle1.ogg, idle2.ogg, idle3.ogg',
-  bee: 'mob/bee/loop1.ogg, loop2.ogg, loop3.ogg'
-});
+const ADMIN_MOB_SOUNDS = Object.freeze(Object.fromEntries(Object.entries(MOB_SOUND_SPECS).map(([mob, events]) => [
+  mob,
+  Object.entries(events).map(([event, sounds]) => `${event}: ${sounds.map(sound => `${sound}.ogg`).join(', ')}`).join(' | ')
+])));
 
 let pool;
 const sessions = new Map();
@@ -796,11 +788,95 @@ async function adminItemEditorPage(user, { item = null, message = '' } = {}) {
   return layout(editing ? 'Editar item' : 'Criar item', '<section class="skills item-editor"><a class="link" href="' + htmlEscape(appUrl('/admin?tab=itens')) + '">Voltar aos itens</a><h1>' + (editing ? 'Editar item' : 'Criar novo item') + '</h1>' + (message ? '<div class="alert">' + htmlEscape(message) + '</div>' : '') + '<form method="post" action="' + htmlEscape(appUrl('/admin/items/save')) + '" class="item-editor-form"><input type="hidden" name="csrf_token" value="' + htmlEscape(user.csrf) + '"><input type="hidden" name="original_id" value="' + htmlEscape(item ? item.id : '') + '"><label>ID interno<input name="id" required pattern="[a-z0-9_]+" maxlength="50" value="' + htmlEscape(item ? item.id : '') + '"></label><label>Nome exibido<input name="name" required maxlength="80" value="' + htmlEscape(item ? item.name : '') + '"></label><label>Categoria<select name="category">' + itemCategoryOptions(item && item.category) + '</select></label><label>Tipo<select name="type">' + itemTypeOptions(item && item.type) + '</select></label><label>Tier<input name="tier" maxlength="30" placeholder="Comum, Ferro, Diamante" value="' + htmlEscape(item ? item.tier || '' : '') + '"></label><label>Stack maximo<input name="stack" type="number" min="1" max="999" value="' + Number(item ? item.stack || 64 : 64) + '"></label><label>Dano<input name="damage" type="number" min="0" max="999" step="0.5" value="' + Number(item ? item.damage || 1 : 1) + '"></label><label>Durabilidade<input name="durability" type="number" min="0" max="999999" value="' + Number(item ? item.durability || 0 : 0) + '"></label><label>Velocidade<input name="speed" type="number" min="0" max="999" step="0.1" value="' + Number(item ? item.speed || 1 : 1) + '"></label><label>Fome restaurada<input name="hunger" type="number" min="0" max="20" value="' + Number(item ? item.hunger || 0 : 0) + '"></label><label>Saturacao<input name="saturation" type="number" min="0" max="100" step="0.1" value="' + Number(item ? item.saturation || 0 : 0) + '"></label><label>URL da imagem de preview<input name="preview_url" type="url" placeholder="https://.../item.png" value="' + htmlEscape(item ? item.previewUrl || '' : '') + '"></label><button class="button-primary" type="submit">Salvar item</button></form></section>', 'panel');
 }
 
+async function adminMobBuilderPage(user) {
+  const body = `<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><section class="skills mob-builder-page">
+    <div class="mobs-heading"><div><span>Ferramentas do jogo</span><h2>Montador de mobs</h2></div><a class="button-secondary" href="${htmlEscape(appUrl('/admin'))}">Voltar ao admin</a></div>
+    <p>Importe uma textura, recorte as partes do atlas e organize a montagem no preview. Tudo fica no navegador até você exportar o JSON.</p>
+    <div class="mob-builder-toolbar">
+      <label class="builder-file">Importar textura <input id="mob-texture-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
+      <label class="builder-file">Importar modelo 3D <input id="mob-model-file" type="file" accept=".json,.geo.json,application/json"></label>
+      <label>Nome <input id="mob-name" type="text" value="polar_bear" maxlength="40"></label>
+      <label>Largura do atlas <input id="atlas-width" type="number" min="1" value="128"></label>
+      <label>Altura do atlas <input id="atlas-height" type="number" min="1" value="64"></label>
+      <button id="builder-add" type="button">Adicionar parte</button>
+      <button id="builder-duplicate" type="button">Duplicar selecionada</button>
+      <button id="builder-remove" type="button">Remover selecionada</button>
+      <button id="builder-export" type="button">Exportar JSON</button>
+    </div>
+    <div class="mob-builder-layout">
+      <aside class="builder-parts"><h3>Partes</h3><div id="builder-parts-list"></div></aside>
+      <section class="builder-stage-wrap"><div class="builder-stage" id="builder-stage"><div class="builder-empty">Importe uma textura para começar</div></div><div class="builder-stage-help">Arraste uma parte para ajustar X e Y. Use a roda do mouse para zoom.</div><div class="builder-3d-title"><span>Preview 3D</span><div class="builder-3d-controls"><button id="builder-rotate-left" type="button" title="Girar para a esquerda">↶</button><button id="builder-rotate-right" type="button" title="Girar para a direita">↷</button><button id="builder-zoom-out" type="button" title="Afastar">−</button><button id="builder-zoom-in" type="button" title="Aproximar">+</button><button id="builder-reset-view" type="button" title="Restaurar vista">⟳</button></div></div><div class="builder-3d" id="builder-3d"><div class="builder-empty">Importe uma textura para visualizar o modelo</div><canvas id="builder-3d-canvas"></canvas></div></section>
+      <aside class="builder-inspector"><h3>Parte selecionada</h3><div id="builder-inspector-empty">Selecione uma parte</div><div id="builder-fields" hidden>
+        <label>Nome <input data-field="name" type="text"></label>
+        <div class="builder-grid"><label>X <input data-field="x" type="number" step="0.1"></label><label>Y <input data-field="y" type="number" step="0.1"></label><label>Z <input data-field="z" type="number" step="0.1"></label><label>Largura <input data-field="w" type="number" min="1" step="0.1"></label><label>Altura <input data-field="h" type="number" min="1" step="0.1"></label><label>U <input data-field="u" type="number" min="0" step="0.1"></label><label>V <input data-field="v" type="number" min="0" step="0.1"></label><label>Profundidade <input data-field="d" type="number" min="1" step="0.1"></label><label>Rotacao <input data-field="r" type="number" step="1"></label></div>
+      </div></aside>
+    </div>
+    <textarea id="builder-output" class="builder-output" readonly aria-label="JSON exportado"></textarea>
+    <script>
+      (() => {
+        const $ = (id) => document.getElementById(id);
+        const stage = $('builder-stage'), list = $('builder-parts-list'), fields = $('builder-fields');
+        const empty = $('builder-inspector-empty'), output = $('builder-output');
+        let image = null, selected = 0, zoom = 6, parts = [
+          { name: 'corpo', x: 34, y: 180, z: 0, w: 150, h: 100, u: 0, v: 19, d: 20, r: 0 },
+          { name: 'cabeca', x: 12, y: 125, z: 0, w: 70, h: 70, u: 0, v: 0, d: 7, r: 0 },
+          { name: 'focinho', x: 0, y: 165, z: 0, w: 50, h: 30, u: 0, v: 44, d: 3, r: 0 }
+        ];
+        function atlas() { return { width: Number($('atlas-width').value) || 128, height: Number($('atlas-height').value) || 64 }; }
+        let scene3d, camera3d, renderer3d, model3d, texture3d, orbit = { x: 0.6, y: 0.35, distance: 8, drag: null };
+        function init3d() {
+          if (!window.THREE) return;
+          const host = $('builder-3d'), canvas = $('builder-3d-canvas');
+          scene3d = new THREE.Scene(); scene3d.background = new THREE.Color(0x101a22);
+          camera3d = new THREE.PerspectiveCamera(35, 1, 0.1, 100); renderer3d = new THREE.WebGLRenderer({ canvas, antialias: false }); renderer3d.setPixelRatio(Math.min(devicePixelRatio, 2));
+          scene3d.add(new THREE.HemisphereLight(0xffffff, 0x44515a, 1.5)); const light = new THREE.DirectionalLight(0xffffff, 1.2); light.position.set(4, 8, 6); scene3d.add(light);
+          model3d = new THREE.Group(); scene3d.add(model3d); const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshBasicMaterial({ color: 0x17232c })); floor.rotation.x = -Math.PI / 2; floor.position.y = -2.5; scene3d.add(floor);
+          host.addEventListener('pointerdown', (e) => { orbit.drag = { x: e.clientX, y: e.clientY, ox: orbit.x, oy: orbit.y }; host.setPointerCapture(e.pointerId); }); host.addEventListener('pointermove', (e) => { if (!orbit.drag) return; orbit.x = orbit.drag.ox + (e.clientX - orbit.drag.x) * 0.01; orbit.y = Math.max(-1.2, Math.min(1.2, orbit.drag.oy + (e.clientY - orbit.drag.y) * 0.01)); }); host.addEventListener('pointerup', () => { orbit.drag = null; }); host.addEventListener('wheel', (e) => { e.preventDefault(); orbit.distance = Math.max(3, Math.min(20, orbit.distance + e.deltaY * 0.01)); }, { passive: false });
+          const tick = () => { requestAnimationFrame(tick); if (!renderer3d) return; const aspect = host.clientWidth / Math.max(1, host.clientHeight); camera3d.aspect = aspect; camera3d.position.set(Math.sin(orbit.x) * orbit.distance, Math.sin(orbit.y) * orbit.distance, Math.cos(orbit.x) * orbit.distance); camera3d.lookAt(0, 0, 0); renderer3d.setSize(host.clientWidth, host.clientHeight, false); renderer3d.render(scene3d, camera3d); }; tick();
+        }
+        function render3d() {
+          if (!model3d || !window.THREE) return; while (model3d.children.length) { const child = model3d.children.pop(); child.geometry?.dispose(); if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose()); else child.material?.dispose(); }
+          if (image) { texture3d = texture3d || new THREE.TextureLoader().load(image, render3d); texture3d.magFilter = texture3d.minFilter = THREE.NearestFilter; }
+          const a = atlas(); parts.forEach((p) => { const map = texture3d ? texture3d.clone() : null; if (map) { map.needsUpdate = true; map.magFilter = map.minFilter = THREE.NearestFilter; map.repeat.set(p.w / a.width, p.h / a.height); map.offset.set(p.u / a.width, 1 - (p.v + p.h) / a.height); map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping; } const material = new THREE.MeshLambertMaterial({ color: 0xffffff, map, transparent: true, alphaTest: 0.05 }); const mesh = new THREE.Mesh(new THREE.BoxGeometry(p.w / 16, p.h / 16, Math.max(1, p.d) / 16), material); if (p.world) mesh.position.set((p.x + p.w / 2) / 16, (p.y + p.h / 2) / 16, (p.z + p.d / 2) / 16); else mesh.position.set((p.x + p.w / 2 - a.width / 2) / 16, (a.height * 3 - p.y - p.h / 2) / 16, p.z / 16); mesh.rotation.z = p.r * Math.PI / 180; model3d.add(mesh); });
+          model3d.position.set(0, 0, 0); model3d.scale.set(1, 1, 1); const bounds = new THREE.Box3().setFromObject(model3d); const center = bounds.getCenter(new THREE.Vector3()); const size = bounds.getSize(new THREE.Vector3()); model3d.position.sub(center); model3d.scale.setScalar(4 / Math.max(size.x, size.y, size.z, 1));
+        }
+        function render() {
+          list.innerHTML = parts.map((p, i) => '<button type="button" class="builder-part ' + (i === selected ? 'selected' : '') + '" data-index="' + i + '">' + (i + 1) + '. ' + esc(p.name) + '</button>').join('');
+          stage.querySelectorAll('.builder-part-preview').forEach((el) => el.remove());
+          if (image) parts.forEach((p, i) => { const el = document.createElement('div'); const sx = p.world ? p.x + 220 : p.x; const sy = p.world ? 240 - p.y - p.h : p.y; el.className = 'builder-part-preview' + (i === selected ? ' selected' : ''); el.dataset.index = i; el.textContent = p.name; el.style.left = sx * zoom + 'px'; el.style.top = sy * zoom + 'px'; el.style.width = p.w * zoom + 'px'; el.style.height = p.h * zoom + 'px'; el.style.transform = 'rotate(' + p.r + 'deg)'; el.style.backgroundImage = 'url(' + image + ')'; el.style.backgroundSize = (atlas().width * zoom) + 'px ' + (atlas().height * zoom) + 'px'; el.style.backgroundPosition = (-p.u * zoom) + 'px ' + (-p.v * zoom) + 'px'; stage.appendChild(el); });
+          if (!parts[selected]) selected = Math.max(0, parts.length - 1);
+          if (parts[selected]) { fields.hidden = false; empty.hidden = true; document.querySelectorAll('[data-field]').forEach((input) => { input.value = parts[selected][input.dataset.field] ?? ''; }); } else { fields.hidden = true; empty.hidden = false; }
+          output.value = JSON.stringify({ name: $('mob-name').value.trim(), texture: { width: atlas().width, height: atlas().height }, parts }, null, 2);
+          render3d();
+        }
+        function esc(value) { return String(value).replace(/[&<>\"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' })[c]); }
+        $('mob-texture-file').addEventListener('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { image = reader.result; stage.querySelector('.builder-empty')?.remove(); render(); }; reader.readAsDataURL(file); });
+        $('mob-model-file').addEventListener('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const data = JSON.parse(reader.result); const geo = (data['minecraft:geometry'] || data.geometry || [])[0]; if (!geo) throw new Error('Modelo Bedrock nao encontrado'); const desc = geo.description || {}; $('atlas-width').value = Number(desc.texture_width || 64); $('atlas-height').value = Number(desc.texture_height || 32); const imported = []; (geo.bones || []).forEach((bone) => (bone.cubes || []).forEach((cube, i) => { const origin = cube.origin || [0, 0, 0], size = cube.size || [1, 1, 1], uv = Array.isArray(cube.uv) ? cube.uv : [0, 0]; imported.push({ name: bone.name + '_' + (i + 1), x: Number(origin[0]), y: Number(origin[1]), z: Number(origin[2]), w: Number(size[0]), h: Number(size[1]), d: Number(size[2]), u: Number(uv[0]), v: Number(uv[1]), r: 0, world: true }); })); if (!imported.length) throw new Error('O modelo nao possui cubos'); parts = imported; selected = 0; $('mob-name').value = (geo.description.identifier || file.name).replace(/^geometry\./, '').replace(/[^a-z0-9_]+/gi, '_'); render(); } catch (error) { alert('Nao foi possivel ler o modelo: ' + error.message); } }; reader.readAsText(file); });
+        list.addEventListener('click', (event) => { const button = event.target.closest('[data-index]'); if (button) { selected = Number(button.dataset.index); render(); } });
+        document.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('input', () => { if (!parts[selected]) return; const key = input.dataset.field; parts[selected][key] = key === 'name' ? input.value : Number(input.value) || 0; render(); }));
+        ['atlas-width', 'atlas-height', 'mob-name'].forEach((id) => $(id).addEventListener('input', render));
+        $('builder-add').addEventListener('click', () => { parts.push({ name: 'parte_' + (parts.length + 1), x: 20, y: 20, z: 0, w: 32, h: 32, u: 0, v: 0, d: 4, r: 0 }); selected = parts.length - 1; render(); });
+        $('builder-duplicate').addEventListener('click', () => { if (!parts[selected]) return; parts.splice(selected + 1, 0, { ...parts[selected], name: parts[selected].name + '_copia', x: parts[selected].x + 4, y: parts[selected].y + 4 }); selected++; render(); });
+        $('builder-remove').addEventListener('click', () => { if (!parts.length) return; parts.splice(selected, 1); selected = Math.min(selected, parts.length - 1); render(); });
+        $('builder-export').addEventListener('click', () => { output.select(); navigator.clipboard?.writeText(output.value); const blob = new Blob([output.value], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = ($('mob-name').value.trim() || 'mob') + '-model.json'; link.click(); URL.revokeObjectURL(link.href); });
+        $('builder-rotate-left').addEventListener('click', () => { orbit.x -= 0.35; }); $('builder-rotate-right').addEventListener('click', () => { orbit.x += 0.35; }); $('builder-zoom-out').addEventListener('click', () => { orbit.distance = Math.min(20, orbit.distance + 1); }); $('builder-zoom-in').addEventListener('click', () => { orbit.distance = Math.max(3, orbit.distance - 1); }); $('builder-reset-view').addEventListener('click', () => { orbit.x = 0.6; orbit.y = 0.35; orbit.distance = 8; });
+        stage.addEventListener('wheel', (event) => { event.preventDefault(); zoom = Math.max(1, Math.min(12, zoom + (event.deltaY < 0 ? 1 : -1))); render(); }, { passive: false });
+        let drag = null;
+        stage.addEventListener('pointerdown', (event) => { const el = event.target.closest('.builder-part-preview'); if (!el) return; selected = Number(el.dataset.index); drag = { x: event.clientX, y: event.clientY, px: parts[selected].x, py: parts[selected].y }; el.setPointerCapture(event.pointerId); render(); });
+        stage.addEventListener('pointermove', (event) => { if (!drag || !parts[selected]) return; parts[selected].x = drag.px + (event.clientX - drag.x) / zoom; parts[selected].y = drag.py + (event.clientY - drag.y) / zoom; render(); });
+        stage.addEventListener('pointerup', () => { drag = null; });
+        init3d(); render();
+      })();
+    </script>
+  </section>`;
+  return layout('Montador de mobs', body, 'panel');
+}
+
 async function adminPage(user, { tab = 'servidor', message = '', sort = 'name', dir = 'asc' } = {}) {
   adminOnly(user);
   const status = await serviceStatus();
   const active = status === 'active';
-  const nav = ['servidor', 'contas', 'itens', 'mobs'].map((name) =>
+  const nav = ['servidor', 'contas', 'itens', 'mobs', 'montador'].map((name) =>
     `<a class="button-secondary" href="${htmlEscape(appUrl(`/admin?tab=${name}`))}">${name[0].toUpperCase() + name.slice(1)}</a>`
   ).join('');
   let body = '';
@@ -839,6 +915,8 @@ async function adminPage(user, { tab = 'servidor', message = '', sort = 'name', 
       </tr>`).join('')}</tbody></table></div></section>`;
   } else if (tab === 'itens') {
     return adminItemsPage(user, { message });
+  } else if (tab === 'montador') {
+    return adminMobBuilderPage(user);
   } else if (tab === 'mobs') {
     const validSorts = new Set(['name', 'health', 'damage', 'speed']);
     sort = validSorts.has(sort) ? sort : 'name';
@@ -1532,6 +1610,16 @@ function broadcast(data, exceptId = null) {
   }
 }
 
+const mobAuthority = createMobAuthority({
+  catalog: ADMIN_MOB_CATALOG,
+  getPlayers: () => sockets.values(),
+  broadcast,
+  send: safeSend,
+  log: (...args) => console.log(...args),
+  config: MOB_SPAWN_CONFIG
+});
+mobAuthority.start();
+
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (url.pathname !== '/multiplayer' && url.pathname !== '/admin/console') {
@@ -1588,7 +1676,8 @@ wss.on('connection', (ws, req, user) => {
   const client = { id, nome, ws, state: null, lastChatAt: 0 };
   sockets.set(id, client);
   console.log(`[multiplayer] ${nome} conectado (conta ${user.conta_id}, personagem ${id}). Online: ${sockets.size}`);
-  safeSend(ws, { type: 'welcome', id, peers: multiplayerSnapshot(id) });
+  const initialMobs = mobAuthority.snapshotFor(client);
+  safeSend(ws, { type: 'welcome', id, peers: multiplayerSnapshot(id), mobs: initialMobs, nearbyMobs: initialMobs.length, ...mobAuthority.stats() });
   broadcast({ type: 'player_joined', id, nome, state: null }, id);
 
   ws.on('message', (raw) => {
@@ -1622,12 +1711,33 @@ wss.on('connection', (ws, req, user) => {
         const action = { type: 'admin_command', command: parsed.command };
         if (parsed.command === 'time') {
           action.value = parsed.value;
+          mobAuthority.setTime(parsed.value);
         } else if (parsed.command === 'weather') {
           action.weather = parsed.weather;
-        } else if (parsed.command === 'summon') {
-          const position = parsed.coordinates || [client.state && client.state.x, client.state && client.state.y, client.state && client.state.z].map((value, index) => Number.isFinite(Number(value)) ? Number(value) : [0, 80, 0][index]);
-          [action.x, action.y, action.z] = position;
-          action.entity = parsed.entity;
+        } else if (parsed.command === 'm') {
+          if (parsed.list) {
+            safeSend(ws, { type: 'chat', id: 'server', nome: 'Servidor', text: `Nomes das criaturas: ${MOB_TYPES.join(', ')}` });
+            return;
+          }
+          const state = client.state || {};
+          const x = Number.isFinite(Number(state.x)) ? Number(state.x) : 0;
+          const y = Number.isFinite(Number(state.y)) ? Number(state.y) : 80;
+          const z = Number.isFinite(Number(state.z)) ? Number(state.z) : 0;
+          const yaw = Number.isFinite(Number(state.yaw)) ? Number(state.yaw) : 0;
+          // Minecraft's forward vector is -sin(yaw), -cos(yaw). Keep the
+          // command authoritative on the server and place the mob in front
+          // of the admin instead of at the admin's feet.
+          const frontDistance = 3;
+          const position = parsed.coordinates || [x - Math.sin(yaw) * frontDistance, y, z - Math.cos(yaw) * frontDistance];
+          const mob = mobAuthority.spawn(parsed.entity, position[0], position[1], position[2], 'command');
+          if (!mob) {
+            safeSend(ws, { type: 'chat', id: 'server', nome: 'Servidor', text: `Nao foi possivel criar a criatura: ${parsed.entity}.` });
+            return;
+          }
+          broadcast({ type: 'chat', id: 'server', nome: 'Servidor', text: `${nome} executou ${text}` });
+          return;
+        } else if (parsed.command === 'killall') {
+          mobAuthority.clear('admin');
         } else if (parsed.command === 'tp') {
           let position = parsed.coordinates;
           if (parsed.targetSpawn) {
@@ -1648,7 +1758,7 @@ wss.on('connection', (ws, req, user) => {
         } else if (parsed.command === 'gamemode') {
           action.mode = parsed.mode;
         }
-        const global = ['time', 'weather', 'killall', 'summon'].includes(parsed.command);
+        const global = ['time', 'weather', 'killall'].includes(parsed.command);
         if (global) {
           broadcast(action);
           broadcast({ type: 'chat', id: 'server', nome: 'Servidor', text: `${nome} executou ${text}` });
@@ -1670,6 +1780,14 @@ wss.on('connection', (ws, req, user) => {
       const kb = Array.isArray(msg.knockback) ? msg.knockback.slice(0, 3).map((n) => Number(n) || 0) : [0, 0, 0];
       console.log(`[pvp] ${nome} atacou ${target.nome} causando ${amount} de dano.`);
       safeSend(target.ws, { type: 'pvp_damage', fromId: id, fromName: nome, amount, knockback: kb });
+      return;
+    }
+    if (msg.type === 'mob_hit') {
+      mobAuthority.handleHit(client, msg);
+      return;
+    }
+    if (msg.type === 'mob_action') {
+      mobAuthority.handleAction(client, msg);
       return;
     }
     if (msg.type !== 'state' || typeof msg.state !== 'object') return;
@@ -1720,6 +1838,7 @@ start().catch((err) => {
 
 function shutdown(signal) {
   console.log(`\n${signal} received, shutting down Minezera server...`);
+  mobAuthority.stop();
   for (const client of sockets.values()) {
     try { client.ws.close(1001, 'server_shutdown'); } catch (e) { /* ignore */ }
   }

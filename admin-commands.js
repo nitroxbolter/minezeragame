@@ -14,7 +14,7 @@ const MOB_ALIASES = Object.freeze({
   esqueleto: 'skeleton', aranha: 'spider', aranha_de_caverna: 'cave_spider', bruxa: 'witch',
   morcego: 'bat', coelho: 'rabbit', cabra: 'goat', raposa: 'fox', aldeao: 'villager',
   aldeão: 'villager', lobo: 'wolf', gato: 'cat', cavalo: 'horse', abelha: 'bee',
-  guardiao: 'guardian', guardião: 'guardian', urso_polar: 'polar_bear', golem: 'iron_golem',
+  guardiao: 'guardian', guardião: 'guardian', bear: 'polar_bear', polarbear: 'polar_bear', 'polar-bear': 'polar_bear', urso_polar: 'polar_bear',
   esqueleto_wither: 'wither_skeleton', esqueleto_com_wither: 'wither_skeleton', devastador: 'ravager',
   ilusionista: 'illusioner', evocador: 'evoker', vindicador: 'vindicator'
 });
@@ -25,7 +25,7 @@ const COMMANDS = Object.freeze({
   time: { aliases: ['hora'], usage: '/time <day|noon|night|midnight|ticks> ou /time set <valor>', description: 'Muda o horario para todos.' },
   weather: { aliases: ['clima'], usage: '/weather <clear|rain>', description: 'Muda o clima para todos.' },
   killall: { aliases: ['kill-all', 'removerentidades'], usage: '/killall', description: 'Remove mobs, itens, flechas e TNT.' },
-  summon: { aliases: ['invocar'], usage: '/summon <mob> [x y z]', description: 'Invoca um mob para todos.' },
+  m: { aliases: ['invocar'], usage: '/m <mob> [x y z] ou /m list', description: 'Invoca um mob para todos ou lista os nomes validos.' },
   tp: { aliases: ['teleport', 'teleportar'], usage: '/tp spawn | /tp <jogador> | /tp <x> <y> <z>', description: 'Teleporta ao spawn inicial, para jogador ou coordenadas.' },
   give: { aliases: ['dar'], usage: '/give <item> [quantidade]', description: 'Entrega um item ao admin.' },
   heal: { aliases: ['curar'], usage: '/heal', description: 'Restaura vida, fome e ar.' },
@@ -82,12 +82,15 @@ function parseAdminCommand(input) {
   if (name === 'killall') {
     return noArguments(name, args) || { ok: true, command: name };
   }
-  if (name === 'summon') {
-    if (![1, 4].includes(args.length)) return { ok: false, error: command.usage };
-    const typedEntity = String(args[0]).toLowerCase();
+  if (name === 'm') {
+    if (args.length === 1 && String(args[0]).toLowerCase() === 'list') return { ok: true, command: name, list: true };
+    if (![1, 2, 4].includes(args.length)) return { ok: false, error: command.usage };
+    const joinedEntity = args.slice(0, 2).map((value) => String(value).toLowerCase()).join(' ');
+    const typedEntity = args.length === 2 && joinedEntity === 'polar bear' ? 'polar-bear' : String(args[0]).toLowerCase();
     const entity = MOB_ALIASES[typedEntity] || typedEntity;
     if (!MOB_TYPES.includes(entity)) return { ok: false, error: `Mob invalido. Use: ${MOB_TYPES.join(', ')}.` };
     if (args.length === 1) return { ok: true, command: name, entity, coordinates: null };
+    if (args.length === 2 && joinedEntity === 'polar bear') return { ok: true, command: name, entity, coordinates: null };
     const coordinates = args.slice(1).map(numberArg);
     if (coordinates.some((value) => value === null)) return { ok: false, error: command.usage };
     return { ok: true, command: name, entity, coordinates };

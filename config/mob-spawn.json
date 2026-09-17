@@ -1,0 +1,57 @@
+{
+  "tickMs": 50,
+  "broadcastEveryTicks": 2,
+  "hardGlobalCap": 32,
+  "activeRadiusChunks": 4,
+  "networkRadiusBlocks": 80,
+  "passive": {
+    "cap": 10,
+    "localCap": 8,
+    "localCapRadius": 64,
+    "everyTicks": 200,
+    "minDistance": 26,
+    "maxDistance": 60,
+    "groupMin": 1,
+    "groupMax": 1,
+    "minSpacing": 10,
+    "perChunkCap": 2,
+    "pools": {
+      "1": ["pig", "cow", "sheep", "chicken", "horse", "rabbit"],
+      "2": ["pig", "cow", "sheep", "chicken", "wolf", "fox", "bee"],
+      "3": ["rabbit"],
+      "4": ["goat", "sheep", "rabbit"],
+      "5": ["polar_bear", "rabbit"],
+      "6": ["wolf", "fox", "rabbit"],
+      "7": ["rabbit"],
+      "8": ["pig", "cow", "sheep", "chicken", "wolf", "bee"],
+      "10": ["pig", "chicken", "cat", "bee"],
+      "11": ["pig", "chicken", "sheep"]
+    }
+  },
+  "hostile": {
+    "cap": 14,
+    "localCap": 10,
+    "localCapRadius": 64,
+    "everyTicks": 120,
+    "nightStart": 12500,
+    "nightEnd": 23000,
+    "minDistance": 26,
+    "maxDistance": 60,
+    "groupMin": 1,
+    "groupMax": 1,
+    "minSpacing": 8,
+    "perChunkCap": 3,
+    "pools": {
+      "default": ["zombie", "zombie", "skeleton", "creeper", "spider", "enderman", "witch"],
+      "0": ["drowned", "drowned", "guardian"],
+      "3": ["husk", "husk", "skeleton", "creeper", "spider"],
+      "5": ["zombie", "skeleton", "creeper", "phantom"],
+      "9": ["drowned", "guardian"],
+      "11": ["zombie", "witch", "spider", "slime"]
+    }
+  },
+  "despawn": {
+    "distance": 80,
+    "minimumAgeMs": 30000
+  }
+}

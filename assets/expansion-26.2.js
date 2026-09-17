@@ -97,27 +97,20 @@
   Recipes.addShaped('compass', 1, [' I ', 'IRI', ' I '], { I: 'iron_ingot', R: 'redstone' });
   Recipes.addShaped('glass_bottle', 3, ['G G', ' G '], { G: 'glass' });
 
-  /* Procedural audio fallback; the 26.2 pack contains textures/models but no sounds folder. */
-  const soundPaths = (base, names) => names.map(name => `assets/sounds/minecraft/${base}/${name}.ogg?v=26.2`);
+  /* Official 26.2 samples imported from the Minecraft asset index, with synthesis as fallback. */
+  const SOUND_ASSET_VERSION = '26.2.15';
+  const soundPaths = names => names.map(name => `assets/sounds/minecraft/${name}.ogg?v=${SOUND_ASSET_VERSION}`);
+  const mobSoundSamples = {};
+  for (const [mob, events] of Object.entries(window.MINEZERA_MOB_SOUND_SPECS || {})) {
+    for (const [event, names] of Object.entries(events)) mobSoundSamples[`mob_${mob}_${event}`] = soundPaths(names);
+  }
   const SoundFX = {
     ctx: null, volume: 0.62, synthVolume: 0.22, last: {}, buffers: new Map(),
     samples: {
-      pickup: soundPaths('random', ['pop']), bow: soundPaths('random', ['bow']), explosion: soundPaths('random', ['explode1', 'explode2', 'explode3', 'explode4']), hurt: soundPaths('random', ['classic_hurt']),
-      break_stone: soundPaths('dig', ['stone1', 'stone2', 'stone3', 'stone4']), break_grass: soundPaths('dig', ['grass1', 'grass2', 'grass3', 'grass4']), break_wood: soundPaths('dig', ['wood1', 'wood2', 'wood3', 'wood4']),
-      place_stone: soundPaths('step', ['stone1', 'stone2', 'stone3', 'stone4']), place_grass: soundPaths('step', ['grass1', 'grass2', 'grass3', 'grass4']), place_wood: soundPaths('step', ['wood1', 'wood2', 'wood3', 'wood4']),
-      mob_zombie_ambient: soundPaths('mob/zombie', ['say1', 'say2', 'say3']), mob_zombie_hurt: soundPaths('mob/zombie', ['hurt1', 'hurt2']), mob_zombie_death: soundPaths('mob/zombie', ['death']),
-      mob_chicken_ambient: soundPaths('mob/chicken', ['say1', 'say2', 'say3']), mob_chicken_hurt: soundPaths('mob/chicken', ['hurt1', 'hurt2']), mob_chicken_death: soundPaths('mob/chicken', ['hurt1']),
-      mob_sheep_ambient: soundPaths('mob/sheep', ['say1', 'say2', 'say3']), mob_sheep_hurt: soundPaths('mob/sheep', ['say1', 'say2']), mob_sheep_death: soundPaths('mob/sheep', ['say3']), mob_sheep_shear: soundPaths('mob/sheep', ['shear']),
-      mob_cow_ambient: soundPaths('mob/cow', ['say1', 'say2', 'say3', 'say4']), mob_cow_hurt: soundPaths('mob/cow', ['hurt1', 'hurt2', 'hurt3']), mob_cow_death: soundPaths('mob/cow', ['hurt3']),
-      mob_pig_ambient: soundPaths('mob/pig', ['say1', 'say2', 'say3']), mob_pig_hurt: soundPaths('mob/pig', ['say1', 'say2']), mob_pig_death: soundPaths('mob/pig', ['death']),
-      mob_skeleton_ambient: soundPaths('mob/skeleton', ['say1', 'say2', 'say3']), mob_skeleton_hurt: soundPaths('mob/skeleton', ['hurt1', 'hurt2', 'hurt3', 'hurt4']), mob_skeleton_death: soundPaths('mob/skeleton', ['death']),
-      mob_creeper_ambient: soundPaths('mob/creeper', ['say1', 'say2', 'say3', 'say4']), mob_creeper_hurt: soundPaths('mob/creeper', ['say1', 'say2']), mob_creeper_death: soundPaths('mob/creeper', ['death']),
-      mob_villager_ambient: soundPaths('mob/villager', ['idle1', 'idle2', 'idle3']), mob_villager_hurt: soundPaths('mob/villager', ['hit1', 'hit2', 'hit3']), mob_villager_death: soundPaths('mob/villager', ['death']), mob_villager_yes: soundPaths('mob/villager', ['yes1']), mob_villager_no: soundPaths('mob/villager', ['no1']),
-      mob_wolf_ambient: soundPaths('mob/wolf/classic', ['bark1', 'bark2', 'bark3']), mob_wolf_hurt: soundPaths('mob/wolf/classic', ['hurt1', 'hurt2', 'hurt3']), mob_wolf_death: soundPaths('mob/wolf/classic', ['death']),
-      mob_cat_ambient: soundPaths('mob/cat', ['meow1', 'meow2', 'meow3', 'meow4']), mob_cat_hurt: soundPaths('mob/cat', ['hitt1', 'hitt2', 'hitt3']), mob_cat_death: soundPaths('mob/cat', ['hitt3']),
-      mob_horse_ambient: soundPaths('mob/horse', ['idle1', 'idle2', 'idle3']), mob_horse_hurt: soundPaths('mob/horse', ['hit1', 'hit2', 'hit3']), mob_horse_death: soundPaths('mob/horse', ['death']),
-      mob_bee_ambient: soundPaths('mob/bee', ['loop1', 'loop2', 'loop3']), mob_bee_hurt: soundPaths('mob/bee', ['hurt1', 'hurt2', 'hurt3']), mob_bee_death: soundPaths('mob/bee', ['death1', 'death2']),
-      mob_pillager_ambient: soundPaths('mob/pillager', ['idle1', 'idle2', 'idle3', 'idle4']), mob_pillager_hurt: soundPaths('mob/pillager', ['hurt1', 'hurt2', 'hurt3']), mob_pillager_death: soundPaths('mob/pillager', ['death1', 'death2'])
+      pickup: soundPaths(['random/pop']), bow: soundPaths(['random/bow']), explosion: soundPaths(['random/explode1', 'random/explode2', 'random/explode3', 'random/explode4']), hurt: soundPaths(['random/classic_hurt']),
+      break_stone: soundPaths(['dig/stone1', 'dig/stone2', 'dig/stone3', 'dig/stone4']), break_grass: soundPaths(['dig/grass1', 'dig/grass2', 'dig/grass3', 'dig/grass4']), break_wood: soundPaths(['dig/wood1', 'dig/wood2', 'dig/wood3', 'dig/wood4']),
+      place_stone: soundPaths(['step/stone1', 'step/stone2', 'step/stone3', 'step/stone4']), place_grass: soundPaths(['step/grass1', 'step/grass2', 'step/grass3', 'step/grass4']), place_wood: soundPaths(['step/wood1', 'step/wood2', 'step/wood3', 'step/wood4']),
+      ...mobSoundSamples
     },
     init() {
       const resume = () => { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); if (this.ctx.state === 'suspended') this.ctx.resume(); this.updateListener(); };
@@ -241,7 +234,7 @@
   });
   const originalBuildModel = Mobs.buildModel.bind(Mobs);
   Mobs.buildModel = function(m) {
-    const real = m.type, alias = { pillager: 'skeleton', cat: 'pig', horse: 'cow', bee: 'chicken', boat: 'pig' }[real];
+    const real = m.type, alias = real === 'boat' ? 'pig' : null;
     if (alias) m.type = alias; originalBuildModel(m); m.type = real;
     const tint = { pillager: 0x778888, wolf: 0xaaa69c, cat: 0xd18b47, horse: 0x7a4b28, bee: 0xffc928, boat: 0x8d5a2b }[real];
     if (tint) m.mesh.traverse(o => { if (o.isMesh) { const mats = Array.isArray(o.material) ? o.material : [o.material]; for (const mt of mats) if (!mt.map) mt.color.setHex(tint); o.userData.baseColors = mats.map(mt => mt.color.clone()); } });
@@ -504,17 +497,11 @@
   const originalShear = Mobs.shear.bind(Mobs); Mobs.shear = function(m) { const result = originalShear(m); if (result) SoundFX.playAt('mob_sheep_shear', m.x, m.y + 0.7, m.z); return result; };
   const originalKill = Mobs.kill.bind(Mobs); Mobs.kill = function(m, source) { originalKill(m, source); if (source === 'player' && m.type === 'pillager') Advancements.grant('whos_the_pillager'); };
   Events.on('tileRemoved', (x, y, z, tile) => { const drop = s => { if (s) Entities.spawnItem(x + 0.5, y + 0.5, z + 0.5, s); }; if (tile.type === 'brewing') { tile.bottles.forEach(drop); drop(tile.ingredient); drop(tile.fuel); } else if (tile.type === 'blast_furnace') { drop(tile.input); drop(tile.fuel); drop(tile.output); } else if (tile.slots) tile.slots.forEach(drop); });
-  Events.on('tick', () => {
-    MachineTicks.tick();
-    if (Scheduler.tick % 100 !== 0 || !Game.running || Mobs.list.length > 45) return;
-    const type = rng.pick(['villager', 'wolf', 'cat', 'horse', 'bee', 'pillager']), x = floor(player.x) + rng.irange(-30, 30), z = floor(player.z) + rng.irange(-30, 30), y = world.getHeight(x, z);
-    if (type === 'pillager' && Sky.dayFactor > 0.5 && rng.chance(0.6)) return;
-    if (Mobs.canStand(x, y, z, MOB_TYPES[type]) && world.getBlock(x, y - 1, z) === B.grass_block) Mobs.spawnMob(type, x + 0.5, y, z + 0.5);
-  });
+  Events.on('tick', () => { MachineTicks.tick(); });
   Events.on('tick', () => { if (Scheduler.tick % 1200 === 0) for (const c of world.chunks.values()) for (const [, t] of c.tiles) if (t.type === 'hive') t.honey = Math.min(3, (t.honey || 0) + 1); });
 
   const style = document.createElement('style');
   style.textContent = '.expansion-action{margin:4px;white-space:normal;max-width:230px}#screen-panel small{font:11px monospace;color:#333}#screen-panel .col{gap:6px}';
   document.head.appendChild(style);
-  window.MINEZERA_EXPANSION_VERSION = '26.2.13';
+  window.MINEZERA_EXPANSION_VERSION = '26.2.15';
 })();

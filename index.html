@@ -388,7 +388,7 @@ const TEST_WORLD_SIZE = 1000;
 const TEST_WORLD_HALF = TEST_WORLD_SIZE / 2;
 const TEST_WORLD_SEED_PREFIX = 'minezera-ilha-biomas-v3-vila';
 const WORLD_GENERATION_VERSION = 3;
-const RESOURCE_PACK_VERSION = '26.2-mansion-pillager1';
+const RESOURCE_PACK_VERSION = '26.2-models-baked1';
 const VILLAGE_CENTER = Object.freeze({ x: 0, z: 40 });
 // Area around the first-spawn village where players cannot build or break blocks.
 // Keep this value separate so the protected radius can be tuned without changing
@@ -1526,12 +1526,32 @@ const ENTITY_TEXTURE_PATHS = {
   goat: ['assets/minecraft/textures/entity/goat/goat.png'],
   fox: ['assets/minecraft/textures/entity/fox/fox.png'],
   wolf: ['assets/minecraft/textures/entity/wolf/wolf_woods.png'],
+  cat: ['assets/minecraft/textures/entity/cat/cat_tabby.png'],
+  horse: ['assets/minecraft/textures/entity/horse/horse_brown.png'],
+  bee: ['assets/minecraft/textures/entity/bee/bee.png'],
   piglin: ['assets/minecraft/textures/entity/piglin/piglin.png'],
   ravager: ['assets/minecraft/textures/entity/illager/ravager.png'],
   vex: ['assets/minecraft/textures/entity/illager/vex.png'],
   illusioner: ['assets/minecraft/textures/entity/illager/illusioner.png'],
   evoker: ['assets/minecraft/textures/entity/illager/evoker.png'],
   vindicator: ['assets/minecraft/textures/entity/illager/vindicator.png']
+};
+
+const EntityModelCatalog = {
+  data: null,
+  promise: null,
+  async load() {
+    if (this.data) return this.data;
+    if (this.promise) return this.promise;
+    this.promise = fetch(`assets/entity-models-26.2.json?v=${encodeURIComponent(RESOURCE_PACK_VERSION)}`, { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => { this.data = data && data.schema === 'minezera.entity-models.v1' ? data : null; return this.data; })
+      .catch(() => null);
+    return this.promise;
+  },
+  get(type) {
+    return this.data?.entities?.[type] || null;
+  }
 };
 
 const ResourcePack = {
@@ -3578,7 +3598,10 @@ const Interaction = {
   // Right click
   use() {
     const t = this.target, held = Player.held(), item = held ? Items.get(held.name) : null;
-    if (this.targetMob) { if (item && item.name === 'shears' && this.targetMob.type === 'sheep') { if (Mobs.shear(this.targetMob)) Inventory.damageHeldTool(); } return; }
+    if (this.targetMob) {
+      if (item && item.name === 'shears' && this.targetMob.type === 'sheep') Multiplayer.mobAction(this.targetMob, 'shear');
+      return;
+    }
     if (t) {
       const def = world.getDef(t.x, t.y, t.z);
       // Interactive blocks first (unless sneaking, like vanilla)
@@ -3683,7 +3706,7 @@ const Interaction = {
     if (player.effects && player.effects.strength) dmg += player.effects.strength.level + 2;
     this.attackCooldown = item && item.tool && item.tool.kind === 'axe' ? 1.0 : 0.6;
     const f = Player.forward();
-    mob.hurt(dmg, 'player', [f[0] * 6, 3.5, f[2] * 6]);
+    if (!Multiplayer.attackMob(mob, dmg, [f[0] * 6, 3.5, f[2] * 6], 'player')) return;
     if (item && item.tool && item.tool.kind !== 'shears') Inventory.damageHeldTool();
     player.exhaustion += 0.1;
   },
@@ -4382,12 +4405,83 @@ const MOB_TYPES = {
 const SHEEP_COLOR_WEIGHTS = [['white', 81], ['black', 5], ['gray', 5], ['light_gray', 5], ['brown', 3], ['pink', 1]];
 
 const Mobs = {
-  list: [], scene: null, faceTex: new Map(), entityTex: new Map(),
+  list: [], scene: null, faceTex: new Map(), entityTex: new Map(), maxServerMobs: 36,
   init(scene) {
     this.scene = scene;
     Events.on('entityTexturesChanged', () => this.refreshEntityTextures());
   },
-  clear() { for (const m of this.list) this.scene.remove(m.mesh); this.list.length = 0; },
+  disposeMesh(mesh) {
+    if (!mesh) return;
+    this.scene.remove(mesh);
+    mesh.traverse(o => {
+      if (o.geometry && o.geometry.dispose) o.geometry.dispose();
+      const materials = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+      for (const material of materials) {
+        if (o.isSprite && material.map && material.map.dispose) material.map.dispose();
+        if (material.dispose) material.dispose();
+      }
+    });
+  },
+  clear() { for (const m of this.list) this.disposeMesh(m.mesh); this.list.length = 0; },
+  findServer(id) { return this.list.find(m => m.serverControlled && String(m.serverId) === String(id)); },
+  applyServerSnapshot(states, complete = false) {
+    const seen = new Set((states || []).filter(state => state && state.id).map(state => String(state.id)));
+    if (complete) {
+      for (const m of [...this.list]) {
+        const staleServerMob = m.serverControlled && !seen.has(String(m.serverId));
+        const oldLocalMob = !m.serverControlled && m.type !== 'boat';
+        if (!m.removed && (staleServerMob || oldLocalMob)) this.remove(m);
+      }
+    }
+    for (const state of states || []) {
+      if (!state || !state.id) continue;
+      this.upsertServer(state);
+    }
+  },
+  upsertServer(state) {
+    let m = this.findServer(state.id);
+    if (!m) {
+      if (this.list.filter(entry => entry.serverControlled && !entry.removed).length >= this.maxServerMobs) return null;
+      m = this.spawnMob(String(state.type || ''), Number(state.x), Number(state.y), Number(state.z), state);
+      if (!m) return null;
+    }
+    // Reassert the authoritative identity on every snapshot. Without this,
+    // an entity that lost its flag was treated as a local mob, removed and
+    // rebuilt on each network update, making the whole model appear to spin.
+    m.serverControlled = true;
+    m.serverId = String(state.id);
+    const shearedChanged = m.type === 'sheep' && m.sheared !== !!state.sheared;
+    m.serverTarget = Object.assign({}, m.serverTarget || state, state);
+    m.health = Number.isFinite(Number(state.health)) ? Number(state.health) : m.health;
+    m.maxHealth = Number.isFinite(Number(state.maxHealth)) ? Number(state.maxHealth) : m.maxHealth;
+    m.state = state.state || m.state;
+    m.fuse = Number.isFinite(Number(state.fuse)) ? Number(state.fuse) : -1;
+    m.sheared = !!state.sheared;
+    m.color = state.color || m.color;
+    if (shearedChanged) this.rebuild(m);
+    return m;
+  },
+  hurtServer(id, health) {
+    const m = this.findServer(id); if (!m) return;
+    m.health = Math.max(0, Number(health) || 0); m.hurtTimer = 0.35;
+    this.updateHealthBar(m);
+    if (typeof SoundFX !== 'undefined') SoundFX.playAt(`mob_${m.type}_${m.health <= 0 ? 'death' : 'hurt'}`, m.x, m.y + m.h * 0.65, m.z);
+  },
+  removeServer(message, localPlayerId) {
+    const m = this.findServer(message && message.id); if (!m) return;
+    if (message.reason === 'killed' || message.reason === 'exploded') {
+      m.dead = true; m.deathTimer = 0; m.parts.hp.visible = false;
+      Particles.burst(m.x, m.y + m.h / 2, m.z, 12, [0.6, 0.6, 0.6], 2);
+      if (message.reason === 'killed' && String(message.killerId) === String(localPlayerId)) {
+        for (const [item, a, b] of m.def.drops) {
+          const n = rng.irange(a, b); if (n > 0) Entities.spawnItem(m.x, m.y + 0.5, m.z, { name: item, count: n });
+        }
+        if (m.type === 'sheep' && !m.sheared) Entities.spawnItem(m.x, m.y + 0.5, m.z, { name: m.color + '_wool', count: 1 });
+        player.kills++; Player.gainExp(m.def.hostile ? 5 : 2);
+        if (m.type === 'pillager' && typeof Advancements !== 'undefined') Advancements.grant('whos_the_pillager');
+      }
+    } else this.remove(m);
+  },
 
   // ---- Model construction ----
   cubeUV(u, v, w, h, d, texW = 64, texH = 32) {
@@ -4470,9 +4564,123 @@ const Mobs = {
     pivot.userData.mesh = mesh;
     return pivot;
   },
+  entityTextureName(type, m) {
+    if (type === 'sheep') return m.sheared ? 'sheep' : 'sheepWool';
+    return type;
+  },
+  catalogFaceGeometry(faces, texW, texH) {
+    const positions = [], normals = [], uvs = [], indices = [];
+    for (const face of faces || []) {
+      const vertices = Array.isArray(face.vertices) ? face.vertices : [];
+      if (vertices.length < 3) continue;
+      const normal = Array.isArray(face.normal) ? face.normal : [0, 1, 0];
+      const base = positions.length / 3;
+      for (const vertex of vertices) {
+        const p = vertex.position || [0, 0, 0], uv = vertex.uv || [0, 0];
+        // Keep the Java model coordinate system here. Minecraft applies the
+        // -X/-Y render transform to the complete model root, including pivots
+        // and rotations; reflecting vertices alone breaks rotated body parts.
+        positions.push(p[0] / 16, p[1] / 16, p[2] / 16);
+        normals.push(normal[0], normal[1], normal[2]);
+        // Baked ModelPart.Vertex already exposes atlas UVs normalized to 0..1.
+        uvs.push(uv[0], 1 - uv[1]);
+      }
+      for (let i = 1; i < vertices.length - 1; i++) indices.push(base, base + i + 1, base + i);
+    }
+    if (!positions.length) return null;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setIndex(indices);
+    geo.computeBoundingSphere();
+    return geo;
+  },
+  buildCatalogModel(m, g, parts) {
+    const spec = EntityModelCatalog.get(m.type);
+    if (!spec?.geometry?.root?.children?.length) return false;
+    const textureName = this.entityTextureName(m.type, m);
+    const texture = this.entityTexture(textureName);
+    if (!texture) return false;
+    const texW = Number(spec.textureSize?.[0]) || texture.image?.width || 64;
+    const texH = Number(spec.textureSize?.[1]) || texture.image?.height || 32;
+    const tint = m.type === 'sheep' && !m.sheared ? (WOOL_COLORS[m.color] || '#ffffff') : '#ffffff';
+    // Java's baked ModelPart origin is 24 pixels above the feet. Minecraft's
+    // renderer flips the complete model root on X/Y, not just its vertices.
+    // Keep this root separate so the health label remains upright and at the
+    // normal entity height.
+    const vanillaRoot = new THREE.Group();
+    vanillaRoot.position.y = 24 / 16;
+    vanillaRoot.scale.set(-1, -1, 1);
+    g.add(vanillaRoot);
+    const addPart = (part, parent) => {
+      const pivot = new THREE.Group();
+      const [x, y, z] = part.pivot || [0, 0, 0];
+      const [rx, ry, rz] = part.rotation || [0, 0, 0];
+      pivot.position.set(x / 16, y / 16, z / 16);
+      pivot.rotation.set(rx, ry, rz);
+      pivot.userData.vanillaPart = true;
+      pivot.userData.baseRotation = [rx, ry, rz];
+      parent.add(pivot);
+      for (const cube of part.cubes || []) {
+        const geo = this.catalogFaceGeometry(cube.faces, texW, texH);
+        if (!geo) continue;
+        const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: tint, map: texture, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide }));
+        pivot.add(mesh);
+      }
+      const name = String(part.name || '').toLowerCase();
+      if (!parts.body && /body|torso|chest/.test(name)) parts.body = pivot;
+      if (!parts.head && /head/.test(name)) parts.head = pivot;
+      if (/leg|foot|hind|front_leg|rear_leg/.test(name)) parts.legs.push(pivot);
+      if (/arm|wing/.test(name)) parts.arms.push(pivot);
+      for (const child of part.children || []) addPart(child, pivot);
+      return pivot;
+    };
+    for (const child of spec.geometry.root.children) addPart(child, vanillaRoot);
+    if (!vanillaRoot.children.length) { g.remove(vanillaRoot); return false; }
+    return true;
+  },
   buildSpecialModel(m, g, parts, face) {
     const t = m.type;
     const textured = (name, w, h, d, x, y, z, texW = 64, texH = 32, color = '#ffffff') => this.box(g, w, h, d, x, y, z, color, { texture: name, uv: this.cubeUV(0, 0, w, h, d, texW, texH) });
+    if (t === 'cat') {
+      parts.body = this.box(g, 4, 16, 6, 0, 9, 0, '#ffffff', { texture: 'cat', uv: this.cubeUV(20, 0, 4, 16, 6, 64, 32) });
+      parts.body.userData.mesh.rotation.x = Math.PI / 2;
+      parts.head = this.box(g, 5, 4, 5, 0, 14, -8, '#ffffff', { texture: 'cat', uv: this.cubeUV(0, 0, 5, 4, 5, 64, 32) });
+      this.box(parts.head, 3, 2, 1, 0, -1, -3, '#ffffff', { texture: 'cat', uv: this.cubeUV(0, 10, 3, 2, 1, 64, 32) });
+      for (const sx of [-1, 1]) this.box(parts.head, 1, 2, 1, sx * 1.8, -3, 0, '#ffffff', { texture: 'cat', uv: this.cubeUV(0, 6, 1, 2, 1, 64, 32) });
+      for (const [sx, sz] of [[-1.5, -4], [1.5, -4], [-1.5, 4], [1.5, 4]]) parts.legs.push(this.box(g, 2, sz > 0 ? 7 : 6, 2, sx, 6, sz, '#ffffff', { pivotTop: true, texture: 'cat', uv: this.cubeUV(sz > 0 ? 8 : 40, sz > 0 ? 13 : 0, 2, sz > 0 ? 7 : 6, 2, 64, 32) }));
+      const tail = this.box(g, 1, 10, 1, 0, 11, 8, '#ffffff', { pivotTop: true, texture: 'cat', uv: this.cubeUV(0, 15, 1, 10, 1, 64, 32) });
+      tail.rotation.x = -0.7;
+      return true;
+    }
+    if (t === 'horse') {
+      // Match the vanilla horse atlas: body 10x10x22, with the long axis on Z.
+      // The previous version rotated a 10x18x10 box and placed the head too far
+      // forward, which made the neck and head appear detached in-game.
+      parts.body = this.box(g, 10, 10, 22, 0, 16, 0, '#ffffff', { texture: 'horse', uv: this.cubeUV(0, 32, 10, 10, 22, 64, 64) });
+      const neck = this.box(g, 4, 12, 7, 0, 22, -7.5, '#ffffff', { texture: 'horse', uv: this.cubeUV(0, 35, 4, 12, 7, 64, 64) });
+      neck.rotation.x = -Math.PI / 6;
+      parts.head = this.box(g, 6, 5, 7, 0, 30.5, -7.5, '#ffffff', { texture: 'horse', uv: this.cubeUV(0, 13, 6, 5, 7, 64, 64) });
+      this.box(g, 4, 5, 5, 0, 30.5, -13.5, '#ffffff', { texture: 'horse', uv: this.cubeUV(0, 25, 4, 5, 5, 64, 64) });
+      for (const sx of [-1, 1]) this.box(g, 2, 3, 1, sx * 1, 34, -7.5, '#ffffff', { texture: 'horse', uv: this.cubeUV(19, 16, 2, 3, 1, 64, 64) });
+      for (const [sx, sz] of [[-3, -9], [3, -9], [-3, 9], [3, 9]]) parts.legs.push(this.box(g, 4, 11, 4, sx, 11, sz, '#ffffff', { pivotTop: true, texture: 'horse', uv: this.cubeUV(48, 21, 4, 11, 4, 64, 64) }));
+      const tail = this.box(g, 3, 14, 4, 0, 20, 11, '#ffffff', { pivotTop: true, texture: 'horse', uv: this.cubeUV(42, 36, 3, 14, 4, 64, 64) });
+      tail.rotation.x = -0.45;
+      return true;
+    }
+    if (t === 'bee') {
+      parts.body = this.box(g, 7, 7, 10, 0, 12, 0, '#ffffff', { texture: 'bee', uv: this.cubeUV(0, 0, 7, 7, 10, 64, 64) });
+      parts.head = parts.body;
+      for (const sx of [-1, 1]) {
+        const wing = this.box(g, 1, 7, 9, sx * 5, 15, 1, '#ffffff', { pivotTop: true, texture: 'bee', uv: this.cubeUV(24, 0, 1, 7, 9, 64, 64) });
+        wing.rotation.z = sx * 0.28;
+        parts.arms.push(wing);
+      }
+      this.box(g, 1, 2, 1, 0, 12, 6, '#3a2b1d', { texture: 'bee', uv: this.cubeUV(26, 7, 1, 2, 1, 64, 64) });
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.legs.push(this.box(g, 1, 3, 1, sx * 2, 8, sz * 3, '#31251b', { pivotTop: true, texture: 'bee', uv: this.cubeUV(26, 1, 1, 3, 1, 64, 64) }));
+      return true;
+    }
     if (t === 'ravager') {
       parts.body = textured('ravager', 20, 16, 24, 0, 16, 0, 128, 128);
       parts.head = textured('ravager', 14, 12, 14, 0, 22, -15, 128, 128);
@@ -4506,15 +4714,15 @@ const Mobs = {
       return true;
     }
     if (t === 'wolf') {
-      parts.body = this.box(g, 6, 6, 10, 0, 10, 0, '#ffffff', { texture: 'wolf', uv: this.cubeUV(18, 14, 6, 6, 10, 64, 32) });
-      parts.body.userData.mesh.rotation.x = Math.PI / 2;
-      parts.head = this.box(g, 6, 6, 6, 0, 15, -8, '#ffffff', { texture: 'wolf', uv: this.cubeUV(0, 0, 6, 6, 6, 64, 32) });
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.legs.push(this.box(g, 2, 8, 2, sx * 2.5, 8, sz * 3, '#ffffff', { pivotTop: true, texture: 'wolf', uv: this.cubeUV(0, 18, 2, 8, 2, 64, 32) }));
-      const tail = this.box(g, 2, 8, 2, 0, 11, 6, '#ffffff', { pivotTop: true, texture: 'wolf', uv: this.cubeUV(9, 18, 2, 8, 2, 64, 32) });
+      parts.body = this.box(g, 6, 9, 6, 0, 7.5, 2, '#ffffff', { texture: 'wolf', uv: this.cubeUV(18, 14, 6, 9, 6, 64, 32) });
+      this.box(g, 8, 6, 7, 0, 10, 2.5, '#ffffff', { texture: 'wolf', uv: this.cubeUV(21, 0, 8, 6, 7, 64, 32) });
+      parts.head = this.box(g, 6, 6, 4, 0, 10.5, -7, '#ffffff', { texture: 'wolf', uv: this.cubeUV(0, 0, 6, 6, 4, 64, 32) });
+      this.box(parts.head, 3, 3, 4, 0, -1.5, -3, '#ffffff', { texture: 'wolf', uv: this.cubeUV(0, 10, 3, 3, 4, 64, 32) });
+      for (const [sx, sz] of [[-2.5, 7], [0.5, 7], [-2.5, -4], [0.5, -4]]) parts.legs.push(this.box(g, 2, 8, 2, sx, 8, sz, '#ffffff', { pivotTop: true, texture: 'wolf', uv: this.cubeUV(0, 18, 2, 8, 2, 64, 32) }));
+      const tail = this.box(g, 2, 8, 2, 0, 12, 8, '#ffffff', { pivotTop: true, texture: 'wolf', uv: this.cubeUV(9, 18, 2, 8, 2, 64, 32) });
       tail.rotation.x = -0.55;
       parts.arms.push(tail);
-      this.box(parts.head, 2, 2, 1, -2.3, -3.2, -1.2, '#ffffff', { texture: 'wolf', uv: this.cubeUV(0, 6, 2, 2, 1, 64, 32) });
-      this.box(parts.head, 2, 2, 1, 2.3, -3.2, -1.2, '#ffffff', { texture: 'wolf', uv: this.cubeUV(0, 6, 2, 2, 1, 64, 32) });
+      for (const sx of [-2, 2]) this.box(parts.head, 2, 2, 1, sx, 4, 0.5, '#ffffff', { texture: 'wolf', uv: this.cubeUV(16, 14, 2, 2, 1, 64, 32) });
       return true;
     }
     if (t === 'spider' || t === 'cave_spider') {
@@ -4534,7 +4742,7 @@ const Mobs = {
     }
     if (t === 'slime' || t === 'magma_cube') {
       const tex = t === 'slime' ? 'slime' : 'magma_cube';
-      parts.body = textured(tex, 12, 12, 12, 0, 6, 0, 64, 32);
+      parts.body = textured(tex, 12, 12, 12, 0, 6, 0, 64, t === 'magma_cube' ? 64 : 32);
       parts.head = parts.body;
       g.scale.set(0.9, 0.9, 0.9);
       return true;
@@ -4552,9 +4760,9 @@ const Mobs = {
       return true;
     }
     if (t === 'ghast') {
-      parts.body = textured('ghast', 16, 14, 16, 0, 16, 0, 64, 32);
+      parts.body = textured('ghast', 16, 14, 16, 0, 16, 0, 128, 64);
       parts.head = parts.body;
-      for (let i = 0; i < 9; i++) parts.legs.push(this.box(g, 2, 8 + (i % 3) * 2, 2, -6 + (i % 5) * 3, 6, -5 + (i % 2) * 10, '#ffffff', { pivotTop: true, texture: 'ghast', uv: this.cubeUV(0, 0, 2, 8, 2, 64, 32) }));
+      for (let i = 0; i < 9; i++) parts.legs.push(this.box(g, 2, 8 + (i % 3) * 2, 2, -6 + (i % 5) * 3, 6, -5 + (i % 2) * 10, '#ffffff', { pivotTop: true, texture: 'ghast', uv: this.cubeUV(0, 0, 2, 8, 2, 128, 64) }));
       return true;
     }
     if (t === 'guardian') {
@@ -4569,49 +4777,55 @@ const Mobs = {
       return true;
     }
     if (t === 'phantom') {
-      parts.body = textured('phantom', 8, 4, 12, 0, 12, 0, 64, 32);
-      parts.head = textured('phantom', 6, 5, 6, 0, 12, -8, 64, 32);
+      parts.body = textured('phantom', 8, 4, 12, 0, 12, 0, 64, 64);
+      parts.head = textured('phantom', 6, 5, 6, 0, 12, -8, 64, 64);
       for (const sx of [-1, 1]) {
-        const wing = this.box(g, 2, 4, 16, sx * 7, 12, 2, '#ffffff', { texture: 'phantom', uv: this.cubeUV(0, 0, 2, 4, 16, 64, 32) });
+        const wing = this.box(g, 2, 4, 16, sx * 7, 12, 2, '#ffffff', { texture: 'phantom', uv: this.cubeUV(0, 0, 2, 4, 16, 64, 64) });
         wing.rotation.z = sx * 0.15;
         parts.arms.push(wing);
       }
       return true;
     }
     if (t === 'polar_bear') {
-      parts.body = textured('polar_bear', 14, 14, 20, 0, 14, 0, 64, 64);
-      parts.body.userData.mesh.rotation.x = Math.PI / 2;
-      parts.head = textured('polar_bear', 10, 10, 10, 0, 21, -12, 64, 64);
-      for (const [sx, sz] of [[-5, -6], [5, -6], [-5, 6], [5, 6]]) parts.legs.push(this.box(g, 4, 9, 4, sx, 9, sz, '#ffffff', { pivotTop: true, texture: 'polar_bear', uv: this.cubeUV(0, 0, 4, 9, 4, 64, 64) }));
+      // Keep the polar bear's torso horizontal in the local renderer. The
+      // Bedrock body layers are authored around a rotated bone pivot.
+      parts.body = this.box(g, 14, 14, 20, 0, 17, 0, '#ffffff', { texture: 'polar_bear', uv: this.cubeUV(0, 19, 14, 14, 20, 128, 64) });
+      this.box(g, 12, 8, 14, 0, 18, 0, '#ffffff', { texture: 'polar_bear', uv: this.cubeUV(39, 0, 12, 8, 14, 128, 64) });
+      parts.head = this.box(g, 7, 7, 7, 0, 15, -11, '#ffffff', { texture: 'polar_bear', uv: this.cubeUV(0, 0, 7, 7, 7, 128, 64) });
+      this.box(g, 5, 3, 3, 0, 13, -16, '#ffffff', { texture: 'polar_bear', uv: this.cubeUV(0, 44, 5, 3, 3, 128, 64) });
+      for (const sx of [-1, 1]) this.box(g, 2, 2, 1, sx * 3.5, 19, -11, '#ffffff', { texture: 'polar_bear', uv: this.cubeUV(26, 0, 2, 2, 1, 128, 64) });
+      for (const [sx, sz, d] of [[-4.5, 6, 8], [4.5, 6, 8], [-3.5, -8, 6], [3.5, -8, 6]]) parts.legs.push(this.box(g, 4, 10, d, sx, 10, sz, '#ffffff', { pivotTop: true, texture: 'polar_bear', uv: this.cubeUV(50, d === 8 ? 22 : 40, 4, 10, d, 128, 64) }));
       return true;
     }
     if (t === 'rabbit') {
-      parts.body = this.box(g, 6, 6, 8, 0, 10, 0, '#ffffff', { texture: 'rabbit', uv: this.cubeUV(28, 45, 6, 6, 8, 64, 64) });
-      parts.head = this.box(g, 6, 5, 6, 0, 17, -5, '#ffffff', { texture: 'rabbit', uv: this.cubeUV(0, 0, 6, 5, 6, 64, 64) });
+      parts.body = this.box(g, 6, 5, 10, 0, 4.5, 3, '#ffffff', { texture: 'rabbit', uv: this.cubeUV(0, 0, 6, 5, 10, 64, 32) });
+      parts.head = this.box(g, 5, 4, 5, 0, 10, -3.5, '#ffffff', { texture: 'rabbit', uv: this.cubeUV(32, 0, 5, 4, 5, 64, 32) });
+      for (const [sx, u] of [[-1.5, 58], [1.5, 52]]) this.box(g, 2, 5, 1, sx, 14.5, -1.5, '#ffffff', { texture: 'rabbit', uv: this.cubeUV(u, 0, 2, 5, 1, 64, 32) });
+      this.box(g, 1, 1, 1, 0, 10, -6.5, '#ffffff', { texture: 'rabbit', uv: this.cubeUV(32, 9, 1, 1, 1, 64, 32) });
       for (const sx of [-1, 1]) {
-        this.box(parts.head, 2, 6, 1, sx * 2, -5, 0, '#ffffff', { texture: 'rabbit', uv: this.cubeUV(16, 0, 2, 6, 1, 64, 64) });
-        parts.legs.push(this.box(g, 2, 5, 2, sx * 2, 5, -2, '#ffffff', { pivotTop: true, texture: 'rabbit', uv: this.cubeUV(8, 20, 2, 5, 2, 64, 64) }));
-        parts.legs.push(this.box(g, 3, 4, 3, sx * 3, 4, 3, '#ffffff', { pivotTop: true, texture: 'rabbit', uv: this.cubeUV(26, 24, 3, 4, 3, 64, 64) }));
+        parts.legs.push(this.box(g, 2, 7, 2, sx * 3, 7, -1, '#ffffff', { pivotTop: true, texture: 'rabbit', uv: this.cubeUV(8, 15, 2, 7, 2, 64, 32) }));
+        parts.legs.push(this.box(g, 2, 1, 7, sx * 3, 6.5, 3.5, '#ffffff', { pivotTop: true, texture: 'rabbit', uv: this.cubeUV(sx < 0 ? 26 : 8, 24, 2, 1, 7, 64, 32) }));
+        this.box(g, 2, 4, 5, sx * 3, 4.5, 6.2, '#ffffff', { texture: 'rabbit', uv: this.cubeUV(sx < 0 ? 16 : 30, 15, 2, 4, 5, 64, 32) });
       }
-      this.box(g, 3, 3, 3, 0, 12, 5, '#ffffff', { texture: 'rabbit', uv: this.cubeUV(30, 0, 3, 3, 3, 64, 64) });
+      this.box(g, 3, 3, 2, 0, 4, 8, '#ffffff', { texture: 'rabbit', uv: this.cubeUV(52, 6, 3, 3, 2, 64, 32) });
       return true;
     }
     if (t === 'bat' || t === 'fox' || t === 'goat') {
       const dims = { rabbit: [6, 6, 8], bat: [4, 4, 6], fox: [8, 7, 12], goat: [8, 9, 12] }[t];
-      const texH = t === 'bat' ? 32 : 64;
-      parts.body = textured(t, dims[0], dims[1], dims[2], 0, dims[1] + 3, 0, 64, texH);
-      parts.head = textured(t, t === 'fox' ? 7 : 5, t === 'goat' ? 7 : 5, t === 'fox' ? 7 : 5, 0, dims[1] + 8, -dims[2] / 2 - 2, 64, texH);
-      for (const sx of [-1, 1]) parts.legs.push(this.box(g, 2, t === 'bat' ? 3 : 5, 2, sx * (dims[0] / 3), 4, -dims[2] / 4, '#ffffff', { pivotTop: true, texture: t, uv: this.cubeUV(0, 0, 2, t === 'bat' ? 3 : 5, 2, 64, texH) }));
+      const texW = t === 'fox' ? 48 : 64, texH = t === 'bat' || t === 'fox' ? 32 : 64;
+      parts.body = textured(t, dims[0], dims[1], dims[2], 0, dims[1] + 3, 0, texW, texH);
+      parts.head = textured(t, t === 'fox' ? 7 : 5, t === 'goat' ? 7 : 5, t === 'fox' ? 7 : 5, 0, dims[1] + 8, -dims[2] / 2 - 2, texW, texH);
+      for (const sx of [-1, 1]) parts.legs.push(this.box(g, 2, t === 'bat' ? 3 : 5, 2, sx * (dims[0] / 3), 4, -dims[2] / 4, '#ffffff', { pivotTop: true, texture: t, uv: this.cubeUV(0, 0, 2, t === 'bat' ? 3 : 5, 2, texW, texH) }));
       if (t === 'bat') for (const sx of [-1, 1]) parts.arms.push(this.box(g, 1, 5, 10, sx * 5, 10, 0, '#ffffff', { texture: t, uv: this.cubeUV(0, 0, 1, 5, 10, 64, 32) }));
       if (t === 'goat') { this.box(parts.head, 1, 4, 1, -2, -4, 0, '#ddd4c3'); this.box(parts.head, 1, 4, 1, 2, -4, 0, '#ddd4c3'); }
       return true;
     }
     if (t === 'iron_golem') {
-      parts.body = textured('iron_golem', 10, 18, 6, 0, 18, 0, 64, 64);
-      parts.head = textured('iron_golem', 8, 8, 8, 0, 31, 0, 64, 64);
+      parts.body = textured('iron_golem', 10, 18, 6, 0, 18, 0, 128, 128);
+      parts.head = textured('iron_golem', 8, 8, 8, 0, 31, 0, 128, 128);
       for (const sx of [-1, 1]) {
-        parts.arms.push(this.box(g, 4, 16, 4, sx * 8, 18, 0, '#ffffff', { pivotTop: true, texture: 'iron_golem', uv: this.cubeUV(0, 0, 4, 16, 4, 64, 64) }));
-        parts.legs.push(this.box(g, 4, 12, 4, sx * 3, 12, 0, '#ffffff', { pivotTop: true, texture: 'iron_golem', uv: this.cubeUV(0, 0, 4, 12, 4, 64, 64) }));
+        parts.arms.push(this.box(g, 4, 16, 4, sx * 8, 18, 0, '#ffffff', { pivotTop: true, texture: 'iron_golem', uv: this.cubeUV(0, 0, 4, 16, 4, 128, 128) }));
+        parts.legs.push(this.box(g, 4, 12, 4, sx * 3, 12, 0, '#ffffff', { pivotTop: true, texture: 'iron_golem', uv: this.cubeUV(0, 0, 4, 12, 4, 128, 128) }));
       }
       return true;
     }
@@ -4620,7 +4834,9 @@ const Mobs = {
   buildModel(m) {
     const g = new THREE.Group(), t = m.type, parts = { legs: [], arms: [] };
     const face = (base) => this.faceTexture(t, base);
-    if (this.buildSpecialModel(m, g, parts, face)) {
+    if (this.buildCatalogModel(m, g, parts)) {
+      // Exact baked geometry and per-face UVs imported from Minecraft Java 26.2.
+    } else if (this.buildSpecialModel(m, g, parts, face)) {
       // Model-specific geometry above uses the matching 26.2 entity texture.
     } else if (t === 'pig') {
       parts.body = this.box(g, 10, 16, 8, 0, 10, 0, '#ffffff', { texture: 'pig', uv: this.cubeUV(28, 8, 10, 16, 8, 64, 64) });
@@ -4697,7 +4913,7 @@ const Mobs = {
       const pants = zombieModel ? '#3a2f8a' : pillager ? '#303843' : '#c8c8c8';
       const baseColor = pillager ? shirt : '#ffffff';
       const lw = ['skeleton', 'wither_skeleton'].includes(t) ? 2 : 4;
-      const texH = ['zombie', 'zombie_villager', 'husk', 'drowned', 'enderman', 'piglin'].includes(textureType) ? 64 : 32;
+      const texH = ['zombie', 'zombie_villager', 'husk', 'drowned', 'piglin'].includes(textureType) ? 64 : 32;
       parts.body = this.box(g, 8, 12, 4, 0, 18, 0, baseColor, { texture: textureType, uv: this.cubeUV(16, 16, 8, 12, 4, 64, texH) });
       parts.head = this.box(g, 8, 8, 8, 0, 28, 0, skin, { texture: textureType, uv: this.cubeUV(0, 0, 8, 8, 8, 64, texH), face: face(skin) });
       const rightLegUV = this.cubeUV(0, 16, lw, 12, lw, 64, texH);
@@ -4721,38 +4937,70 @@ const Mobs = {
       }
       if (t === 'enderman') g.scale.set(1.05, 1.42, 1.05);
     }
-    // Health bar sprite
-    const cv = document.createElement('canvas'); cv.width = 64; cv.height = 16;
+    // Name + health bar sprite. The creature name is rendered above its HP bar
+    // so it remains readable without changing the 3D model itself.
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 32;
     const tex = new THREE.CanvasTexture(cv); tex.magFilter = tex.minFilter = THREE.NearestFilter;
     const hp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-    hp.scale.set(1.2, 0.3, 1); hp.position.y = m.h + 0.45; hp.visible = false; g.add(hp);
+    hp.scale.set(1.8, 0.45, 1); hp.position.y = m.h + 0.58; hp.visible = false; g.add(hp);
     parts.hp = hp; parts.hpCanvas = cv;
     g.traverse(o => { if (o.isMesh) { o.userData.baseColors = (Array.isArray(o.material) ? o.material : [o.material]).map(mt => mt.color.clone()); } });
     m.mesh = g; m.parts = parts;
   },
   updateHealthBar(m, holdSeconds = 3) {
     const ctx = m.parts.hpCanvas.getContext('2d');
-    ctx.clearRect(0, 0, 64, 16);
-    ctx.font = '8px monospace';
+    const labels = {
+      pig: 'Porco', cow: 'Vaca', sheep: 'Ovelha', chicken: 'Galinha',
+      zombie: 'Zumbi', skeleton: 'Esqueleto', creeper: 'Creeper',
+      villager: 'Aldeão', pillager: 'Pillager', wolf: 'Lobo', cat: 'Gato',
+      horse: 'Cavalo', bee: 'Abelha', zombie_villager: 'Aldeão zumbi',
+      husk: 'Husk', drowned: 'Afogado', witch: 'Bruxa', enderman: 'Enderman',
+      blaze: 'Blaze', ghast: 'Ghast', spider: 'Aranha', cave_spider: 'Aranha de caverna',
+      slime: 'Slime', magma_cube: 'Cubo de magma', silverfish: 'Traça',
+      guardian: 'Guardião', phantom: 'Phantom', polar_bear: 'Urso polar',
+      rabbit: 'Coelho', bat: 'Morcego', iron_golem: 'Golem de ferro',
+      wandering_trader: 'Comerciante errante', goat: 'Cabra', fox: 'Raposa',
+      wither_skeleton: 'Esqueleto Wither', piglin: 'Piglin', ravager: 'Ravager',
+      vex: 'Vex', illusioner: 'Illusioner', evoker: 'Evoker', vindicator: 'Vindicator'
+    };
+    const label = labels[m.type] || m.def.name || m.type;
+    ctx.clearRect(0, 0, 128, 32);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
-    ctx.fillText(`${Math.max(0, Math.ceil(m.health))} / ${m.maxHealth}`, 33, 0);
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillText(label, 65, 1);
     ctx.fillStyle = '#fff';
-    ctx.fillText(`${Math.max(0, Math.ceil(m.health))} / ${m.maxHealth}`, 32, 0);
+    ctx.fillText(label, 64, 0);
+    ctx.font = '8px monospace';
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillText(`${Math.max(0, Math.ceil(m.health))} / ${m.maxHealth}`, 65, 12);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(`${Math.max(0, Math.ceil(m.health))} / ${m.maxHealth}`, 64, 11);
     ctx.fillStyle = '#222';
-    ctx.fillRect(8, 10, 48, 4);
+    ctx.fillRect(12, 23, 104, 5);
     ctx.fillStyle = '#e33';
-    ctx.fillRect(8, 10, Math.round(48 * clamp(m.health / m.maxHealth, 0, 1)), 4);
+    ctx.fillRect(12, 23, Math.round(104 * clamp(m.health / m.maxHealth, 0, 1)), 5);
     m.parts.hp.material.map.needsUpdate = true; m.parts.hp.visible = true; m.hpTimer = holdSeconds;
   },
 
   // ---- Spawning ----
-  spawnMob(type, x, y, z) {
+  spawnMob(type, x, y, z, serverState = null) {
     const def = MOB_TYPES[type]; if (!def) return null;
     const m = { type, def, x, y, z, vx: 0, vy: 0, vz: 0, w: def.w, h: def.h, yaw: rng.next() * Math.PI * 2, health: def.health, maxHealth: def.health, onGround: false, stepHeight: 1,
-      dead: false, deathTimer: 0, hurtTimer: 0, state: 'idle', stateTimer: rng.range(1, 3), moveX: 0, moveZ: 0, attackCooldown: 0, fire: 0, walkPhase: 0, hpTimer: 0, fuse: -1, age: 0, mesh: null, parts: null, sheared: false, regrow: 0, color: 'white', lightTimer: 0, fleeFrom: null };
-    if (type === 'sheep') { let r = rng.int(100), pick = 'white'; for (const [c, w] of SHEEP_COLOR_WEIGHTS) { if (r < w) { pick = c; break; } r -= w; } m.color = pick; }
+      dead: false, deathTimer: 0, hurtTimer: 0, state: 'idle', stateTimer: rng.range(1, 3), moveX: 0, moveZ: 0, attackCooldown: 0, fire: 0, walkPhase: 0, hpTimer: 0, fuse: -1, age: 0, mesh: null, parts: null, sheared: false, regrow: 0, color: 'white', lightTimer: 0, fleeFrom: null,
+      serverControlled: !!serverState, serverId: serverState ? String(serverState.id) : null, serverTarget: serverState ? Object.assign({}, serverState) : null };
+    if (serverState) {
+      m.yaw = Number(serverState.yaw) || 0;
+      m.health = Number.isFinite(Number(serverState.health)) ? Number(serverState.health) : m.health;
+      m.maxHealth = Number.isFinite(Number(serverState.maxHealth)) ? Number(serverState.maxHealth) : m.maxHealth;
+      m.state = serverState.state || m.state; m.fuse = Number(serverState.fuse) || -1;
+      m.sheared = !!serverState.sheared; m.color = serverState.color || m.color;
+    }
+    // Keep rendering orientation independent from AI/network yaw. This prevents
+    // a noisy or alternating authoritative angle from spinning the whole model.
+    m.visualYaw = m.yaw;
+    if (type === 'sheep' && !serverState) { let r = rng.int(100), pick = 'white'; for (const [c, w] of SHEEP_COLOR_WEIGHTS) { if (r < w) { pick = c; break; } r -= w; } m.color = pick; }
     m.hurt = (amount, source, kb) => this.hurt(m, amount, source, kb);
     this.buildModel(m);
     this.scene.add(m.mesh);
@@ -4875,7 +5123,10 @@ const Mobs = {
       if (m.state === 'wander') {
         const ax = floor(m.x + m.moveX * 1.2), az = floor(m.z + m.moveZ * 1.2), ay = floor(m.y);
         const ahead = world.getDef(ax, ay, az), below = world.getDef(ax, ay - 1, az), below2 = world.getDef(ax, ay - 2, az);
-        if (ahead.liquid || below.liquid || (!below.solid && !below2.solid)) { m.moveX = -m.moveX; m.moveZ = -m.moveZ; m.yaw += Math.PI; }
+        if (ahead.liquid || below.liquid || (!below.solid && !below2.solid)) {
+          // Stop briefly instead of adding PI every frame while blocked.
+          m.moveX = 0; m.moveZ = 0; m.state = 'idle'; m.stateTimer = rng.range(0.8, 2.2);
+        }
       }
       // Sheep regrow wool by "eating grass"
       if (m.type === 'sheep' && m.sheared && --m.regrow <= 0) { m.sheared = false; this.rebuild(m); }
@@ -4895,7 +5146,7 @@ const Mobs = {
     const dot = (dx * look[0] + dy * look[1] + dz * look[2]) / Math.max(0.001, dist);
     return dot > 0.28 && this.lineOfSight(m);
   },
-  rebuild(m) { this.scene.remove(m.mesh); this.buildModel(m); this.scene.add(m.mesh); },
+  rebuild(m) { this.disposeMesh(m.mesh); this.buildModel(m); this.scene.add(m.mesh); },
 
   // ---- Per-frame movement + animation ----
   update(dt) {
@@ -4903,28 +5154,72 @@ const Mobs = {
       if (m.dead) {
         m.deathTimer += dt;
         m.mesh.rotation.z = Math.min(Math.PI / 2, m.deathTimer * 4);
-        if (m.deathTimer > 0.7) { this.scene.remove(m.mesh); m.removed = true; }
+        if (m.deathTimer > 0.7) { this.disposeMesh(m.mesh); m.removed = true; }
         continue;
       }
-      const d = m.def, speed = d.speed * (m.state === 'flee' ? 1.5 : 1) * (m.fuse >= 0 ? 0 : 1);
-      const inWater = world.getBlock(floor(m.x), floor(m.y + 0.2), floor(m.z)) === B.water;
-      const k = 1 - Math.exp(-(m.onGround ? 10 : 2) * dt);
-      m.vx += (m.moveX * speed - m.vx) * k; m.vz += (m.moveZ * speed - m.vz) * k;
-      if (inWater) { m.vy = Math.min(m.vy + 25 * dt, 2.5); }
-      else m.vy = Math.max(m.vy - Physics.GRAVITY * dt, -Physics.TERMINAL);
-      const prevOnGround = m.onGround;
-      Physics.move(m, m.vx * dt, m.vy * dt, m.vz * dt);
-      if ((m.hitX || m.hitZ) && m.onGround && !inWater) m.vy = Physics.JUMP_VEL * 0.95;
-      if (!prevOnGround && m.onGround && m.fallStart !== undefined) { const fd = m.fallStart - m.y; if (fd > 3) this.hurt(m, floor(fd - 3), 'fall'); }
-      if (m.onGround || inWater) m.fallStart = m.y; else if (m.fallStart === undefined || m.y > m.fallStart) m.fallStart = m.y;
+      const d = m.def;
+      if (m.serverControlled) {
+        const target = m.serverTarget || m;
+        const oldX = m.x, oldZ = m.z, interpolation = Math.min(1, dt * 10);
+        m.x += (Number(target.x) - m.x) * interpolation;
+        m.y += (Number(target.y) - m.y) * interpolation;
+        m.z += (Number(target.z) - m.z) * interpolation;
+        m.vx = (m.x - oldX) / Math.max(dt, 0.001); m.vz = (m.z - oldZ) / Math.max(dt, 0.001);
+        // Use movement direction for the visual orientation. The authoritative
+        // yaw can jump while a mob is blocked or idle; applying those jumps to
+        // the model made every sprite spin in place. A stopped mob keeps its
+        // last orientation until it actually starts moving again.
+        const targetVx = Number(target.vx) || 0, targetVz = Number(target.vz) || 0;
+        const faceX = Math.abs(targetVx) + Math.abs(targetVz) > 0.03 ? targetVx : m.vx;
+        const faceZ = Math.abs(targetVx) + Math.abs(targetVz) > 0.03 ? targetVz : m.vz;
+        if (Math.hypot(faceX, faceZ) > 0.03) {
+          const desiredYaw = Math.atan2(-faceX, -faceZ);
+          let delta = desiredYaw - m.yaw;
+          while (delta > Math.PI) delta -= Math.PI * 2;
+          while (delta < -Math.PI) delta += Math.PI * 2;
+          m.yaw += delta * interpolation;
+        }
+        m.state = target.state || m.state;
+        m.fuse = Number.isFinite(Number(target.fuse)) ? Number(target.fuse) : -1;
+      } else {
+        const speed = d.speed * (m.state === 'flee' ? 1.5 : 1) * (m.fuse >= 0 ? 0 : 1);
+        const inWater = world.getBlock(floor(m.x), floor(m.y + 0.2), floor(m.z)) === B.water;
+        const k = 1 - Math.exp(-(m.onGround ? 10 : 2) * dt);
+        m.vx += (m.moveX * speed - m.vx) * k; m.vz += (m.moveZ * speed - m.vz) * k;
+        if (inWater) { m.vy = Math.min(m.vy + 25 * dt, 2.5); }
+        else m.vy = Math.max(m.vy - Physics.GRAVITY * dt, -Physics.TERMINAL);
+        const prevOnGround = m.onGround;
+        Physics.move(m, m.vx * dt, m.vy * dt, m.vz * dt);
+        if ((m.hitX || m.hitZ) && m.onGround && !inWater) m.vy = Physics.JUMP_VEL * 0.95;
+        if (!prevOnGround && m.onGround && m.fallStart !== undefined) { const fd = m.fallStart - m.y; if (fd > 3) this.hurt(m, floor(fd - 3), 'fall'); }
+        if (m.onGround || inWater) m.fallStart = m.y; else if (m.fallStart === undefined || m.y > m.fallStart) m.fallStart = m.y;
+      }
+      // Render rotation is rate-limited and only changes while the entity is
+      // truly moving. Stationary entities retain their last visual direction.
+      if (!Number.isFinite(m.visualYaw)) m.visualYaw = Number.isFinite(m.yaw) ? m.yaw : 0;
+      if (Math.hypot(m.vx, m.vz) > 0.03 && Number.isFinite(m.yaw)) {
+        let visualDelta = m.yaw - m.visualYaw;
+        while (visualDelta > Math.PI) visualDelta -= Math.PI * 2;
+        while (visualDelta < -Math.PI) visualDelta += Math.PI * 2;
+        const maxTurn = Math.max(0.015, dt * 2.4);
+        m.visualYaw += clamp(visualDelta, -maxTurn, maxTurn);
+      }
       // Animation
       const hs = Math.hypot(m.vx, m.vz);
       m.walkPhase += hs * dt * 4;
       const swing = Math.sin(m.walkPhase) * Math.min(1, hs) * 0.7;
-      m.parts.legs.forEach((l, i) => { l.rotation.x = swing * (i % 2 ? -1 : 1) * (i >= 2 ? -1 : 1); });
-      if (m.type === 'skeleton') { /* arms hold the bow */ } else m.parts.arms.forEach((a, i) => { if (m.type !== 'zombie') a.rotation.x = swing * (i % 2 ? 1 : -1) * 0.8; });
+      m.parts.legs.forEach((l, i) => {
+        const base = l.userData.vanillaPart ? (l.userData.baseRotation || [0, 0, 0]) : [0, 0, 0];
+        l.rotation.set(base[0] + swing * (i % 2 ? -1 : 1) * (i >= 2 ? -1 : 1), base[1], base[2]);
+      });
+      if (m.type === 'skeleton') { /* arms hold the bow */ } else m.parts.arms.forEach((a, i) => {
+        if (m.type !== 'zombie') {
+          const base = a.userData.vanillaPart ? (a.userData.baseRotation || [0, 0, 0]) : [0, 0, 0];
+          a.rotation.set(base[0] + swing * (i % 2 ? 1 : -1) * 0.8, base[1], base[2]);
+        }
+      });
       m.mesh.position.set(m.x, m.y, m.z);
-      m.mesh.rotation.y = m.yaw;
+      m.mesh.rotation.y = m.visualYaw;
       if (m.fuse >= 0) { const s = 1 + (30 - m.fuse) / 30 * 0.25; m.mesh.scale.set(s, s, s); }
       // Hurt flash & lighting
       if (m.hurtTimer > 0) m.hurtTimer -= dt;
@@ -4943,6 +5238,10 @@ const Mobs = {
 
   hurt(m, amount, source, kb) {
     if (m.dead) return;
+    if (m.serverControlled) {
+      Multiplayer.attackMob(m, amount, kb || [0, 0, 0], source || 'environment');
+      return;
+    }
     m.health -= amount; m.hurtTimer = 0.35;
     if (kb) { m.vx += kb[0]; m.vy += kb[1]; m.vz += kb[2]; }
     this.updateHealthBar(m);
@@ -4959,7 +5258,7 @@ const Mobs = {
       Player.gainExp(m.def.hostile ? 5 : 2);
     }
   },
-  remove(m) { this.scene.remove(m.mesh); m.removed = true; m.dead = true; },
+  remove(m) { this.disposeMesh(m.mesh); m.removed = true; m.dead = true; },
   shear(m) {
     if (m.sheared) return false;
     m.sheared = true; m.regrow = 1200 + rng.int(1200);
@@ -4980,7 +5279,7 @@ const Mobs = {
   }
 };
 Object.values(Mobs).length; // (namespace ready)
-Events.on('tick', () => { Mobs.tick(); Mobs.spawnTick(); });
+// Creature spawning and AI are authoritative on the Node server. The browser only renders snapshots.
 /* ============================================================================
    16. SIMULATION — fluids, gravity blocks, fire, random ticks (farming, grass,
        saplings, leaves), redstone
@@ -5438,7 +5737,7 @@ const HUD = {
     const coords = $('admin-coords');
     if (window.MINEZERA_PLAYER && window.MINEZERA_PLAYER.admin) {
       coords.style.display = 'block';
-      coords.textContent = `Admin\nX: ${p.x.toFixed(2)}\nY: ${p.y.toFixed(2)}\nZ: ${p.z.toFixed(2)}\nBloco: ${bx}, ${by}, ${bz}`;
+      coords.textContent = `Admin\nX: ${p.x.toFixed(2)}\nY: ${p.y.toFixed(2)}\nZ: ${p.z.toFixed(2)}\nBloco: ${bx}, ${by}, ${bz}\nCriaturas próximas: ${Multiplayer.nearbyMobCount}\nTotal no servidor: ${Multiplayer.serverMobCount}`;
     } else {
       coords.style.display = 'none';
       coords.textContent = '';
@@ -5448,7 +5747,7 @@ const HUD = {
 };
 
 const Chat = {
-  openState: false,
+  openState: false, lastCommand: '',
   init() {
     const form = $('chat-box');
     const input = $('chat-input');
@@ -5461,6 +5760,12 @@ const Chat = {
       if (event.code === 'Escape') {
         event.preventDefault();
         this.close();
+        return;
+      }
+      if (event.shiftKey && (event.code === 'ArrowUp' || event.code === 'ArrowDown') && this.lastCommand) {
+        event.preventDefault();
+        input.value = this.lastCommand;
+        input.setSelectionRange(input.value.length, input.value.length);
       }
     });
   },
@@ -5488,6 +5793,7 @@ const Chat = {
     const text = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 180);
     this.close();
     if (!text) return;
+    if (text.startsWith('/')) this.lastCommand = text;
     if (!Multiplayer.sendChat(text)) this.addLine('Sistema', 'Chat indisponivel no servidor.');
   },
   receive(message) {
@@ -5528,7 +5834,7 @@ const AdminCommands = {
       Particles.n = 0;
       return;
     }
-    if (command === 'summon') {
+    if (command === 'm') {
       const x = Number(message.x), y = Number(message.y), z = Number(message.z);
       if ([x, y, z].every(Number.isFinite)) Mobs.spawnMob(String(message.entity || '').toLowerCase(), x, y, z);
       return;
@@ -5820,7 +6126,7 @@ const Menus = {
     $('loadbar').firstElementChild.style.width = '4%';
   },
   async preloadAssets() {
-    const tasks = [this.resourcePackPromise];
+    const tasks = [this.resourcePackPromise, EntityModelCatalog.load()];
     const skin = PlayerSkins.current();
     tasks.push(new Promise((resolve) => {
       const image = new Image();
@@ -6141,7 +6447,7 @@ const PlayerView = {
 };
 
 const Multiplayer = {
-  ws: null, scene: null, id: null, peers: new Map(), sendTimer: 0, reconnectTimer: 0, reconnectDelay: 2,
+  ws: null, scene: null, id: null, peers: new Map(), sendTimer: 0, reconnectTimer: 0, reconnectDelay: 2, mobAuthorityReady: false, nearbyMobCount: 0, serverMobCount: 0,
   init(scene) {
     this.scene = scene;
     if (window.MINEZERA_PLAYER) this.connect();
@@ -6157,6 +6463,10 @@ const Multiplayer = {
     ws.addEventListener('close', () => {
       this.ws = null;
       this.id = null;
+      this.mobAuthorityReady = false;
+      this.nearbyMobCount = 0;
+      this.serverMobCount = 0;
+      Mobs.applyServerSnapshot([], true);
     });
     ws.addEventListener('error', () => {
       try { ws.close(); } catch (e) { /* ignore */ }
@@ -6168,6 +6478,10 @@ const Multiplayer = {
     if (msg.type === 'welcome') {
       this.id = msg.id;
       for (const p of msg.peers || []) this.upsertPeer(p.id, p.nome, p.state);
+      Mobs.applyServerSnapshot(msg.mobs || [], true);
+      this.nearbyMobCount = Number(msg.nearbyMobs) || (msg.mobs || []).length;
+      this.serverMobCount = Number(msg.totalMobs) || 0;
+      this.mobAuthorityReady = true;
     } else if (msg.type === 'player_joined') {
       this.upsertPeer(msg.id, msg.nome, msg.state);
       HUD.message(`${msg.nome} se conectou`);
@@ -6183,6 +6497,32 @@ const Multiplayer = {
       Player.damage(Number(msg.amount) || 0, `foi atacado por ${msg.fromName || 'jogador'}`, msg.knockback || null);
       HUD.message(`${msg.fromName || 'Jogador'} te acertou`);
       this.sendState();
+    } else if (msg.type === 'mob_spawn') {
+      Mobs.upsertServer(msg.mob);
+    } else if (msg.type === 'mob_update') {
+      Mobs.applyServerSnapshot(msg.mobs || [], !!msg.full);
+      if (msg.full) {
+        this.nearbyMobCount = Number(msg.nearbyMobs) || (msg.mobs || []).length;
+        this.serverMobCount = Number(msg.totalMobs) || 0;
+      }
+      if (Number.isFinite(Number(msg.serverTime))) Sky.time = Number(msg.serverTime);
+    } else if (msg.type === 'mob_hurt') {
+      Mobs.hurtServer(msg.id, msg.health);
+    } else if (msg.type === 'mob_remove') {
+      Mobs.removeServer(msg, this.id);
+    } else if (msg.type === 'mob_attack') {
+      const mobName = (MOB_TYPES[msg.mobType] && MOB_TYPES[msg.mobType].name) || msg.mobType || 'criatura';
+      Player.damage(Number(msg.amount) || 0, `foi atacado por ${mobName}`, msg.knockback || null);
+      Mobs.applyElemental({ element: msg.element, elementDuration: msg.element === 'poison' ? 60 : 80 });
+      this.sendState();
+    } else if (msg.type === 'mob_explode') {
+      Particles.burst(Number(msg.x) || 0, (Number(msg.y) || 0) + 0.5, Number(msg.z) || 0, 28, [1, 0.55, 0.12], 5);
+      if (typeof SoundFX !== 'undefined') SoundFX.playAt('explosion', Number(msg.x) || 0, Number(msg.y) || 0, Number(msg.z) || 0, 1.05);
+    } else if (msg.type === 'mob_action_result' && msg.action === 'shear') {
+      const m = Mobs.findServer(msg.mobId);
+      if (m) Entities.spawnItem(m.x, m.y + 0.6, m.z, { name: (msg.color || 'white') + '_wool', count: Math.max(1, Number(msg.count) || 1) });
+      Inventory.damageHeldTool();
+      if (m && typeof SoundFX !== 'undefined') SoundFX.playAt('mob_sheep_shear', m.x, m.y + 0.7, m.z);
     }
   },
   makeNameTexture(name) {
@@ -6338,6 +6678,16 @@ const Multiplayer = {
       knockback: [f[0] * 6, 3.5, f[2] * 6]
     }));
     HUD.message(`Voce acertou ${peer.nome || 'jogador'}`);
+    return true;
+  },
+  attackMob(mob, amount, knockback, source = 'player') {
+    if (!mob || !mob.serverControlled || !mob.serverId || !this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify({ type: 'mob_hit', mobId: mob.serverId, amount, knockback, source }));
+    return true;
+  },
+  mobAction(mob, action) {
+    if (!mob || !mob.serverControlled || !mob.serverId || !this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify({ type: 'mob_action', mobId: mob.serverId, action }));
     return true;
   },
   sendChat(text) {
@@ -6574,7 +6924,6 @@ const Game = {
         if (ChunkManager.isReady(player.x, player.z)) {
           this.ready = true; $('loading').classList.add('hidden');
           if (this.freshSpawn) this.settleSpawn(); else if (Physics.intersects(player)) player.y = world.getHeight(floor(player.x), floor(player.z)) + 1;
-          this.spawnVillageVillagers();
           Input.lock();
         }
       } else if (!this.paused) {
@@ -6628,6 +6977,7 @@ window.addEventListener('pagehide', () => { if (Game.running && Game.ready) Acco
    // STUB: Dedicated armour equipment slots and visible armour layers.
    ========================================================================== */
 </script>
-<script src="assets/expansion-26.2.js?v=26.2.13"></script>
+<script src="assets/mob-sounds-26.2.js?v=26.2.15"></script>
+<script src="assets/expansion-26.2.js?v=26.2.15"></script>
 </body>
 </html>

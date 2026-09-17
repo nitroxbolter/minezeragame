@@ -5,6 +5,13 @@ require_once __DIR__ . '/login/auth.php';
 
 $user = require_login();
 
+// The game client is embedded inline from index.html. Never cache this dynamic
+// response, otherwise browsers can continue running stale movement/render code
+// after a deployment.
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 $html = (string) file_get_contents(__DIR__ . '/index.html');
 $bootstrap = '<script>window.MINEZERA_PLAYER = ' . json_encode([
     'conta_id' => (int) $user['conta_id'],
