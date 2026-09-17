@@ -2,9 +2,9 @@
 
 const SEA_LEVEL = 62;
 const WORLD_HEIGHT = 128;
-const WORLD_SEED = 'minezera-ilha-biomas-v3-vila';
+const WORLD_SEED = 'minezera-ilha-biomas-v5-1500-vila';
 const VILLAGE_CENTER = Object.freeze({ x: 0, z: 40 });
-const MANSION_CENTER = Object.freeze({ x: 230, z: 150 });
+const MANSION_CENTER = Object.freeze({ x: 435, z: -360 });
 
 const BIOME = Object.freeze({
   OCEAN: 0, PLAINS: 1, FOREST: 2, DESERT: 3, MOUNTAINS: 4, SNOWY: 5,
@@ -33,15 +33,21 @@ const HOSTILE_POOLS = Object.freeze({
   [BIOME.SNOWY]: ['zombie', 'skeleton', 'creeper', 'phantom']
 });
 
-const RANGED = new Set(['skeleton', 'pillager', 'drowned', 'witch', 'blaze', 'ghast', 'guardian', 'illusioner', 'evoker']);
-const FLYING = new Set(['bee', 'bat', 'blaze', 'ghast', 'phantom', 'vex']);
+const RANGED = new Set(['skeleton', 'pillager', 'drowned', 'witch', 'blaze', 'ghast', 'guardian', 'illusioner', 'evoker', 'wither']);
+const FLYING = new Set(['bee', 'bat', 'blaze', 'ghast', 'phantom', 'vex', 'wither']);
 const WATER = new Set(['drowned', 'guardian']);
 const ALWAYS_HOSTILE = new Set([
   'zombie', 'skeleton', 'creeper', 'pillager', 'zombie_villager', 'husk', 'drowned', 'witch',
   'enderman', 'blaze', 'ghast', 'spider', 'cave_spider', 'slime', 'magma_cube', 'silverfish',
-  'guardian', 'phantom', 'wither_skeleton', 'piglin', 'ravager', 'vex', 'illusioner', 'evoker', 'vindicator'
+  'guardian', 'phantom', 'wither_skeleton', 'piglin', 'ravager', 'vex', 'illusioner', 'evoker', 'vindicator', 'wither',
+  'alligator', 'anglerfish', 'bear', 'black_bear', 'desert_scorpion', 'great_white_shark', 'hippo',
+  'jellyfish', 'jungle_scorpion', 'komodo_dragon', 'lion', 'piranha', 'snake', 'tiger'
 ]);
 const SHEEP_COLORS = ['white', 'white', 'white', 'white', 'white', 'black', 'gray', 'brown', 'pink'];
+const VILLAGER_PROFESSIONS = [
+  'farmer', 'fisherman', 'shepherd', 'fletcher', 'librarian', 'cartographer',
+  'cleric', 'armorer', 'weaponsmith', 'toolsmith', 'butcher', 'leatherworker', 'mason'
+];
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -141,39 +147,48 @@ class TerrainSampler {
   }
 
   sample(x, z) {
-    const islandRadius = 360, shoreWidth = 72, distance = Math.hypot(x, z);
-    const cont = this.cont.fbm2(x * 0.0012, z * 0.0012, 4);
-    const ero = this.ero.fbm2((x + 1000) * 0.003, (z + 1000) * 0.003, 3);
-    const hills = this.hill.fbm2(x * 0.012, z * 0.012, 4);
+    const islandRadius = 680, shoreWidth = 72, distance = Math.hypot(x, z);
+    const cont = this.cont.fbm2(x * 0.00045, z * 0.00045, 4);
+    const ero = this.ero.fbm2((x + 1000) * 0.001, (z + 1000) * 0.001, 3);
+    const hills = this.hill.fbm2(x * 0.004, z * 0.004, 4);
     const islandLand = 1 - smoothstep(islandRadius - shoreWidth, islandRadius, distance);
-    const centralHighlands = 1 - clamp(Math.hypot(x - 20, z + 75) / 210, 0, 1);
+    const region = (cx, cz, rx, rz) => Math.max(0, 1 - Math.hypot((x - cx) / rx, (z - cz) / rz));
+    const snowRegion = region(-276, -276, 315, 300);
+    const jungleRegion = region(-354, 315, 348, 288);
+    const swampRegion = region(-465, 102, 234, 192);
+    const desertRegion = region(375, 294, 294, 312);
+    const rockRegion = region(396, -303, 300, 282);
+    const forestRegion = region(36, -186, 495, 276);
+    const villageRegion = region(0, 40, 192, 192);
     const landness = smoothstep(-0.25, 0.15, cont);
-    const mountain = clamp(Math.max(smoothstep(0.15, 0.65, ero) * smoothstep(0.05, 0.3, cont), centralHighlands * 0.72), 0, 1) * islandLand;
-    const ridge = mountain > 0 ? this.ridge.ridge2(x * 0.006, z * 0.006, 4) : 0;
-    const base = lerp(SEA_LEVEL + 1 + cont * 5, 70 + cont * 8, landness);
-    let height = base + hills * (5 + 13 * mountain) + ridge * 58 * mountain;
+    const naturalMountain = smoothstep(0.15, 0.65, ero) * smoothstep(0.05, 0.3, cont);
+    const mountain = clamp(Math.max(naturalMountain * 0.7, snowRegion * 0.98, rockRegion * 0.9, region(54, -276, 375, 246) * 0.62), 0, 1) * islandLand;
+    const ridge = mountain > 0 ? this.ridge.ridge2(x * 0.002, z * 0.002, 4) : 0;
+    const base = lerp(SEA_LEVEL + 1 + cont * 4, 69 + cont * 7, landness);
+    let height = base + hills * (5 + 18 * mountain) + ridge * 48 * mountain + snowRegion * 14 + rockRegion * 18;
     const coast = smoothstep(islandRadius - shoreWidth, islandRadius, distance);
-    const jungle = x < -90 && z < 115 && distance < islandRadius - shoreWidth;
-    const swamp = x < -115 && z > 55 && distance < islandRadius - shoreWidth;
-    const desert = x > 105 && z > -145 && distance < islandRadius - shoreWidth;
-    const snow = z < -125 && distance < islandRadius - shoreWidth;
     if (distance >= islandRadius) height = SEA_LEVEL - 10 - Math.min(22, Math.floor((distance - islandRadius) * 0.08));
     else if (coast > 0) height = lerp(Math.max(SEA_LEVEL + 1, height), SEA_LEVEL - 1 - coast * 10, coast);
     if (distance < islandRadius - shoreWidth && height < SEA_LEVEL + 1) height = SEA_LEVEL + 1;
-    if (swamp) height = Math.floor(clamp(SEA_LEVEL - 1 + hills * 4, SEA_LEVEL - 2, SEA_LEVEL + 2));
+    if (swampRegion > 0.2) height = Math.floor(clamp(SEA_LEVEL - 1 + hills * 4 + (swampRegion - 0.2) * 3, SEA_LEVEL - 2, SEA_LEVEL + 3));
     height = Math.floor(clamp(height, 4, WORLD_HEIGHT - 6));
-    const temp = (this.temp.fbm2((x + 5000) * 0.0017, z * 0.0017, 3) + 1) * 0.5 - Math.max(0, height - 70) * 0.006;
-    const humidity = (this.hum.fbm2(x * 0.0021, (z + 5000) * 0.0021, 3) + 1) * 0.5;
+    let temp = (this.temp.fbm2((x + 5000) * 0.0007, z * 0.0007, 3) + 1) * 0.5 - Math.max(0, height - 70) * 0.006;
+    temp = clamp(temp - snowRegion * 0.55 + desertRegion * 0.38, 0, 1);
+    let humidity = (this.hum.fbm2(x * 0.00085, (z + 5000) * 0.00085, 3) + 1) * 0.5;
+    humidity = clamp(humidity + jungleRegion * 0.35 + swampRegion * 0.4 - desertRegion * 0.45, 0, 1);
     let biome;
     if (height < SEA_LEVEL - 12) biome = BIOME.DEEP_OCEAN;
     else if (height < SEA_LEVEL - 1) biome = BIOME.OCEAN;
+    else if (snowRegion > 0.24 && height > 72) biome = BIOME.SNOWY;
     else if (mountain > 0.45 && height > 74) biome = BIOME.MOUNTAINS;
+    else if (swampRegion > 0.24) biome = BIOME.SWAMP;
+    else if (jungleRegion > 0.24) biome = BIOME.JUNGLE;
+    else if (desertRegion > 0.24) biome = BIOME.DESERT;
+    else if (villageRegion > 0.28) biome = BIOME.PLAINS;
     else if (height <= SEA_LEVEL + 2 && cont < 0.3) biome = BIOME.BEACH;
-    else if (swamp) biome = BIOME.SWAMP;
-    else if (jungle) biome = BIOME.JUNGLE;
-    else if (snow || temp < 0.3) biome = humidity > 0.5 ? BIOME.TAIGA : BIOME.SNOWY;
-    else if (desert || (temp > 0.68 && humidity < 0.42)) biome = BIOME.DESERT;
-    else if (humidity > 0.6) biome = temp < 0.5 ? BIOME.BIRCH : BIOME.FOREST;
+    else if (snowRegion > 0.14 || temp < 0.3) biome = humidity > 0.5 ? BIOME.TAIGA : BIOME.SNOWY;
+    else if (desertRegion > 0.12 || (temp > 0.68 && humidity < 0.42)) biome = BIOME.DESERT;
+    else if (forestRegion > 0.18 || humidity > 0.6) biome = temp < 0.5 ? BIOME.BIRCH : BIOME.FOREST;
     else biome = BIOME.PLAINS;
     return { h: height, biome, distance };
   }
@@ -197,6 +212,7 @@ function createMobAuthority(options) {
   const activeRadiusChunks = Number(config.activeRadiusChunks) || 6;
   const networkRadiusBlocks = Number(config.networkRadiusBlocks) || 112;
   const hardGlobalCap = Math.max(1, Number(config.hardGlobalCap) || 32);
+  const getBlockId = typeof options.getBlockId === 'function' ? options.getBlockId : () => null;
   const log = typeof options.log === 'function' ? options.log : () => {};
   const mobs = new Map();
   const hitCooldowns = new Map();
@@ -206,13 +222,71 @@ function createMobAuthority(options) {
   let worldTime = 1000;
   let villageInitialized = false;
   let mansionInitialized = false;
+  const villageBaseY = terrain.sample(VILLAGE_CENTER.x, VILLAGE_CENTER.z).h;
+
+  // The village generator flattens a 25-block radius around the center on the
+  // client. Use that same floor for village entities; sampling the untouched
+  // procedural terrain at each spawn point could place some villagers below
+  // the generated path or house floor.
+  function groundHeightFor(type, x, z) {
+    const inVillage = (type === 'villager' || type === 'iron_golem')
+      && Math.hypot(x - VILLAGE_CENTER.x, z - VILLAGE_CENTER.z) <= 25;
+    return inVillage ? villageBaseY : terrain.sample(x, z).h;
+  }
+
+  const villageHouses = [[-14, -12], [14, -12], [-16, 12], [16, 12], [0, -19]];
+
+  // The generated village is deterministic but its generated chunks are not
+  // necessarily uploaded to the server before the first mob tick. Mirror the
+  // small solid parts of its houses here so villagers cannot walk through a
+  // wall during that window. Player-built blocks are checked below from the
+  // server's serialized chunk snapshots.
+  function generatedVillageSolid(x, y, z) {
+    if (Math.hypot(x - VILLAGE_CENTER.x, z - VILLAGE_CENTER.z) > 30) return false;
+    for (const [hx, hz] of villageHouses) {
+      const dx = Math.floor(x) - (VILLAGE_CENTER.x + hx);
+      const dz = Math.floor(z) - (VILLAGE_CENTER.z + hz);
+      if (Math.abs(dx) > 4 || Math.abs(dz) > 4) continue;
+      const iy = Math.floor(y);
+      if (iy >= villageBaseY + 2 && iy <= villageBaseY + 5 && (Math.abs(dx) === 4 || Math.abs(dz) === 4)) {
+        const window = iy === villageBaseY + 3 && ((Math.abs(dx) === 4 && Math.abs(dz) <= 2) || (Math.abs(dz) === 4 && Math.abs(dx) <= 2));
+        const door = dz === 4 && dx === 0 && iy <= villageBaseY + 3;
+        if (!window && !door) return true;
+      }
+      if (iy === villageBaseY + 6 || iy === villageBaseY + 7) return true;
+    }
+    return false;
+  }
+
+  function entitySpaceClear(mob, x, y, z) {
+    const radius = Math.max(0.16, Number(mob.w) || 0.3);
+    const minY = Math.floor(y + 0.08), maxY = Math.ceil(y + Math.max(0.35, mob.h) - 0.05);
+    const samples = [-radius, 0, radius];
+    for (const ox of samples) for (const oz of samples) {
+      for (let iy = minY; iy <= maxY; iy++) {
+        const id = getBlockId(Math.floor(x + ox), iy, Math.floor(z + oz));
+        if ((id !== null && id !== 0) || generatedVillageSolid(x + ox, iy, z + oz)) return false;
+      }
+    }
+    return true;
+  }
+
+  function resolveHorizontalMotion(mob, nx, nz, nextY) {
+    if (entitySpaceClear(mob, nx, nextY, nz)) return [nx, nz];
+    // Preserve natural movement by sliding along a wall instead of freezing
+    // whenever only one component of the requested movement is obstructed.
+    if (entitySpaceClear(mob, nx, mob.y, mob.z)) return [nx, mob.z];
+    if (entitySpaceClear(mob, mob.x, mob.y, nz)) return [mob.x, nz];
+    return [mob.x, mob.z];
+  }
 
   function publicState(mob) {
     return {
       id: mob.id, type: mob.type, x: mob.x, y: mob.y, z: mob.z,
       yaw: mob.yaw, health: mob.health, maxHealth: mob.maxHealth,
       state: mob.state, vx: mob.vx, vz: mob.vz, fuse: mob.fuse,
-      sheared: mob.sheared, color: mob.color, spawnKind: mob.spawnKind
+      sheared: mob.sheared, color: mob.color, spawnKind: mob.spawnKind,
+      profession: mob.profession || null, villagerLevel: mob.villagerLevel || 0, tradeUses: mob.tradeUses || 0
     };
   }
 
@@ -224,7 +298,7 @@ function createMobAuthority(options) {
     for (const mob of mobs.values()) {
       if (mob.spawnKind === 'natural') natural++;
       if (mob.hostile) hostile++; else passive++;
-      if (mob.spawnKind === 'village' || mob.spawnKind === 'mansion') structures++;
+      if (mob.spawnKind === 'village' || mob.spawnKind === 'mansion' || mob.spawnKind === 'structure') structures++;
       if (mob.spawnKind === 'command') command++;
     }
     log(`[mobs] ${reason}: ${mobs.size}/${hardGlobalCap} no mapa | naturais ${natural} | passivos ${passive} | hostis ${hostile} | estruturas ${structures} | comandos ${command}`);
@@ -272,12 +346,23 @@ function createMobAuthority(options) {
       element: parseElement(def), hostile: ALWAYS_HOSTILE.has(type), ranged: RANGED.has(type),
       flying: FLYING.has(type), water: WATER.has(type), state: 'idle', stateUntil: Date.now() + randomInt(1000, 3500),
       attackAt: 0, fuse: -1, sheared: false, color: type === 'sheep' ? pick(SHEEP_COLORS) : 'white',
+      profession: type === 'villager' ? (extra.profession || pick(VILLAGER_PROFESSIONS)) : null,
+      villagerLevel: type === 'villager' ? clamp(Number(extra.villagerLevel) || 1, 1, 5) : 0,
+      tradeUses: type === 'villager' ? Math.max(0, Number(extra.tradeUses) || 0) : 0,
       regrowAt: 0, spawnKind, bornAt: Date.now(), targetId: null, ...extra
     };
     mobs.set(id, mob);
     broadcastMobSpawn(mob);
     reportCount(`nasceu ${type}`);
     return mob;
+  }
+
+  function spawnStructure(type, x, y, z) {
+    const existing = [...mobs.values()].find((mob) => (
+      mob.spawnKind === 'structure' && mob.type === type &&
+      Math.hypot(mob.x - Number(x), mob.z - Number(z)) < 3
+    ));
+    return existing || spawn(type, x, y, z, 'structure');
   }
 
   function remove(mob, reason = 'despawn', killerId = null) {
@@ -362,7 +447,11 @@ function createMobAuthority(options) {
     const speed = moving ? mob.speed * (mob.hostile ? 0.72 : 0.55) : 0;
     let nx = mob.x + mob.moveX * speed * dt, nz = mob.z + mob.moveZ * speed * dt;
     const nextSample = terrain.sample(nx, nz), currentSample = terrain.sample(mob.x, mob.z);
-    const canMove = mob.water ? nextSample.h < SEA_LEVEL : (nextSample.h >= SEA_LEVEL - 1 && Math.abs(nextSample.h - currentSample.h) <= 2);
+    const nextGround = groundHeightFor(mob.type, nx, nz), currentGround = groundHeightFor(mob.type, mob.x, mob.z);
+    const canMove = mob.water ? nextSample.h < SEA_LEVEL : (nextGround >= SEA_LEVEL - 1 && Math.abs(nextGround - currentGround) <= 2);
+    if (canMove && !mob.flying) {
+      [nx, nz] = resolveHorizontalMotion(mob, nx, nz, nextGround + (mob.water ? 2 : 1));
+    }
     if (!canMove || nextSample.distance > 355) {
       // Do not turn every server tick while blocked. That made the client
       // interpolate between alternating yaws and rendered mobs spinning in place.
@@ -372,7 +461,7 @@ function createMobAuthority(options) {
     }
     mob.vx = (nx - mob.x) / Math.max(dt, 0.001); mob.vz = (nz - mob.z) / Math.max(dt, 0.001);
     mob.x = nx; mob.z = nz;
-    const ground = terrain.sample(mob.x, mob.z).h + 1;
+    const ground = groundHeightFor(mob.type, mob.x, mob.z) + 1;
     if (mob.water) mob.y = Math.min(SEA_LEVEL - 1, ground + 1);
     else if (mob.flying) mob.y += (ground + (mob.type === 'phantom' ? 10 : 3) - mob.y) * Math.min(1, dt * 2);
     else mob.y = ground;
@@ -404,7 +493,7 @@ function createMobAuthority(options) {
       const spawnChunkX = Math.floor(x / 16), spawnChunkZ = Math.floor(z / 16);
       if (Math.max(Math.abs(spawnChunkX - playerChunkX), Math.abs(spawnChunkZ - playerChunkZ)) > activeRadiusChunks) continue;
       const sample = terrain.sample(x, z);
-      if (sample.distance >= 350) continue;
+      if (sample.distance >= 660) continue;
       const minSpacing = Number(rules.minSpacing) || (hostile ? 8 : 10);
       if ([...mobs.values()].some((mob) => Math.hypot(mob.x - (x + 0.5), mob.z - (z + 0.5)) < minSpacing)) continue;
       const configuredPools = rules.pools || {};
@@ -424,9 +513,12 @@ function createMobAuthority(options) {
   function ensureStructures(players) {
     if (!villageInitialized) {
       villageInitialized = true;
-      const spots = [[-3, 32], [3, 32], [-8, 40], [8, 40], [-8, 48], [8, 48]];
-      for (const [x, z] of spots) spawn('villager', x + 0.5, terrain.sample(x, z).h + 1, z + 0.5, 'village');
-      spawn('iron_golem', 0.5, terrain.sample(0, 40).h + 1, 40.5, 'village');
+      const spots = [
+        [-3, 32, 'farmer'], [3, 32, 'librarian'], [-8, 40, 'armorer'],
+        [8, 40, 'toolsmith'], [-8, 48, 'cleric'], [8, 48, 'fletcher']
+      ];
+      for (const [x, z, profession] of spots) spawn('villager', x + 0.5, villageBaseY + 1, z + 0.5, 'village', { profession });
+      spawn('iron_golem', 0.5, villageBaseY + 1, 40.5, 'village');
     }
     const nearMansion = players.some((client) => Math.hypot(client.state.x - MANSION_CENTER.x, client.state.z - MANSION_CENTER.z) < 110);
     if (nearMansion && !mansionInitialized) {
@@ -491,6 +583,16 @@ function createMobAuthority(options) {
     const mob = mobs.get(String(message.mobId || ''));
     if (!mob || !client.state) return false;
     if (Math.hypot(client.state.x - mob.x, client.state.y - mob.y, client.state.z - mob.z) > 6.5) return false;
+    if (message.action === 'trade' && mob.type === 'villager') {
+      mob.tradeUses = Math.max(0, Number(mob.tradeUses) || 0) + 1;
+      mob.villagerLevel = clamp(1 + Math.floor(mob.tradeUses / 5), 1, 5);
+      for (const clientEntry of options.getPlayers()) {
+        if (clientEntry.state && Math.hypot(clientEntry.state.x - mob.x, clientEntry.state.z - mob.z) <= networkRadiusBlocks) {
+          options.send(clientEntry.ws, { type: 'mob_update', mobs: [publicState(mob)] });
+        }
+      }
+      return true;
+    }
     if (message.action === 'shear' && mob.type === 'sheep' && !mob.sheared) {
       mob.sheared = true; mob.regrowAt = Date.now() + randomInt(60000, 120000);
       for (const clientEntry of options.getPlayers()) {
@@ -512,7 +614,7 @@ function createMobAuthority(options) {
   function stop() { if (timer) clearInterval(timer); timer = null; }
   function setTime(value) { if (Number.isFinite(Number(value))) worldTime = ((Math.floor(Number(value)) % 24000) + 24000) % 24000; }
 
-  return { start, stop, snapshot, snapshotFor: nearbySnapshot, stats, spawn, clear, handleHit, handleAction, setTime, terrain };
+  return { start, stop, snapshot, snapshotFor: nearbySnapshot, stats, spawn, spawnStructure, clear, handleHit, handleAction, setTime, terrain };
 }
 
 module.exports = { createMobAuthority, TerrainSampler, BIOME };

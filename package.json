@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check server-mobs.js && node --check assets/expansion-26.2.js && node --check assets/mob-sounds-26.2.js",
+    "check": "node --check server.js && node --check server-mobs.js && node --check admin-commands.js && node --check assets/expansion-26.2.js && node --check assets/mob-sounds-26.2.js && node --check assets/naturalist-mobs.js",
     "test": "node --test tests/server-mobs.test.js",
     "import:minecraft-sounds": "node scripts/import-minecraft-26.2-sounds.js",
     "import:minecraft-models": "node scripts/import-minecraft-26.2-models.js"

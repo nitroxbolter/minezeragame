@@ -16,16 +16,16 @@
     "minSpacing": 10,
     "perChunkCap": 2,
     "pools": {
-      "1": ["pig", "cow", "sheep", "chicken", "horse", "rabbit"],
-      "2": ["pig", "cow", "sheep", "chicken", "wolf", "fox", "bee"],
-      "3": ["rabbit"],
-      "4": ["goat", "sheep", "rabbit"],
-      "5": ["polar_bear", "rabbit"],
-      "6": ["wolf", "fox", "rabbit"],
-      "7": ["rabbit"],
-      "8": ["pig", "cow", "sheep", "chicken", "wolf", "bee"],
-      "10": ["pig", "chicken", "cat", "bee"],
-      "11": ["pig", "chicken", "sheep"]
+      "1": ["pig", "cow", "sheep", "chicken", "horse", "rabbit", "deer", "boar", "capybara"],
+      "2": ["pig", "cow", "sheep", "chicken", "wolf", "fox", "bee", "boar", "deer", "hedgehog", "bird"],
+      "3": ["rabbit", "ostrich", "turkey"],
+      "4": ["goat", "sheep", "rabbit", "mammoth", "deer"],
+      "5": ["polar_bear", "rabbit", "mammoth", "tortoise"],
+      "6": ["wolf", "fox", "rabbit", "bear", "deer"],
+      "7": ["rabbit", "crab", "duck"],
+      "8": ["pig", "cow", "sheep", "chicken", "wolf", "bee", "boar", "deer", "bird"],
+      "10": ["pig", "chicken", "cat", "bee", "capybara", "elephant", "bird", "butterfly"],
+      "11": ["pig", "chicken", "sheep", "duck", "capybara"]
     }
   },
   "hostile": {
@@ -42,12 +42,12 @@
     "minSpacing": 8,
     "perChunkCap": 3,
     "pools": {
-      "default": ["zombie", "zombie", "skeleton", "creeper", "spider", "enderman", "witch"],
+      "default": ["zombie", "zombie", "skeleton", "creeper", "spider", "enderman", "witch", "snake", "lion", "tiger"],
       "0": ["drowned", "drowned", "guardian"],
-      "3": ["husk", "husk", "skeleton", "creeper", "spider"],
+      "3": ["husk", "husk", "skeleton", "creeper", "spider", "desert_scorpion"],
       "5": ["zombie", "skeleton", "creeper", "phantom"],
       "9": ["drowned", "guardian"],
-      "11": ["zombie", "witch", "spider", "slime"]
+      "11": ["zombie", "witch", "spider", "slime", "jungle_scorpion"]
     }
   },
   "despawn": {

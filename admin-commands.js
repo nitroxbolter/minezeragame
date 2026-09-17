@@ -1,12 +1,14 @@
 'use strict';
 
+const { NATURALIST_MOB_IDS } = require('./assets/naturalist-mobs');
+
 const MOB_TYPES = Object.freeze([
   'pig', 'cow', 'sheep', 'chicken', 'zombie', 'zombie_villager', 'husk', 'drowned',
   'skeleton', 'pillager', 'creeper', 'witch', 'enderman', 'blaze', 'ghast', 'spider',
   'cave_spider', 'slime', 'magma_cube', 'silverfish', 'guardian', 'phantom', 'polar_bear',
   'rabbit', 'bat', 'iron_golem', 'wandering_trader', 'goat', 'fox', 'wither_skeleton', 'piglin',
-  'ravager', 'vex', 'illusioner', 'evoker', 'vindicator',
-  'villager', 'wolf', 'cat', 'horse', 'bee'
+  'ravager', 'vex', 'illusioner', 'evoker', 'vindicator', 'wither',
+  'villager', 'wolf', 'cat', 'horse', 'bee', ...NATURALIST_MOB_IDS
 ]);
 const MOB_ALIASES = Object.freeze({
   porco: 'pig', vaca: 'cow', ovelha: 'sheep', galinha: 'chicken', zumbi: 'zombie',

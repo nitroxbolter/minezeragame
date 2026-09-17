@@ -222,6 +222,32 @@
   Items.get('compass').onUse = () => { const dx = player.spawn[0] - player.x, dz = player.spawn[2] - player.z; const dir = Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 'leste' : 'oeste') : (dz > 0 ? 'sul' : 'norte'); HUD.message(`Spawn: ${floor(player.spawn[0])}, ${floor(player.spawn[2])} - siga para ${dir}`); return true; };
   Items.get('elytra').onUse = () => { player.elytra = !player.elytra; HUD.message(player.elytra ? 'Elytra ativada: pule de um lugar alto.' : 'Elytra desativada.'); return true; };
 
+  /* Villager professions and vanilla-style trade tiers */
+  const VILLAGER_PROFESSIONS = ['farmer', 'fisherman', 'shepherd', 'fletcher', 'librarian', 'cartographer', 'cleric', 'armorer', 'weaponsmith', 'toolsmith', 'butcher', 'leatherworker', 'mason'];
+  const VILLAGER_LABELS = {
+    farmer: 'Agricultor', fisherman: 'Pescador', shepherd: 'Pastor', fletcher: 'Flecheiro',
+    librarian: 'Bibliotecário', cartographer: 'Cartógrafo', cleric: 'Clérigo', armorer: 'Armoreiro',
+    weaponsmith: 'Ferreiro de armas', toolsmith: 'Ferreiro de ferramentas', butcher: 'Açougueiro',
+    leatherworker: 'Curtidor', mason: 'Pedreiro', unemployed: 'Desempregado', nitwit: 'Simplório'
+  };
+  const VILLAGER_LEVELS = ['Novato', 'Aprendiz', 'Oficial', 'Especialista', 'Mestre'];
+  const trade = (inItems, outName, outCount, maxUses = 16) => ({ in: inItems.map(([name, count]) => ({ name, count })), out: { name: outName, count: outCount }, maxUses });
+  const VILLAGER_TRADES = {
+    farmer: [trade([['wheat', 20]], 'emerald', 1), trade([['carrot', 15]], 'emerald', 1), trade([['pumpkin', 6]], 'emerald', 1), trade([['emerald', 1]], 'bread', 6), trade([['emerald', 4]], 'carrot', 3)],
+    fisherman: [trade([['string', 15]], 'emerald', 1), trade([['coal', 15]], 'emerald', 1), trade([['emerald', 1]], 'cod', 6), trade([['emerald', 1]], 'salmon', 6), trade([['emerald', 13]], 'fishing_rod', 1)],
+    shepherd: [trade([['white_wool', 18]], 'emerald', 1), trade([['string', 12]], 'emerald', 1), trade([['emerald', 1]], 'shears', 1), trade([['emerald', 1]], 'white_wool', 4)],
+    fletcher: [trade([['stick', 32]], 'emerald', 1), trade([['flint', 26]], 'emerald', 1), trade([['emerald', 1]], 'arrow', 16), trade([['emerald', 3]], 'bow', 1)],
+    librarian: [trade([['paper', 24]], 'emerald', 1), trade([['book', 4]], 'emerald', 1), trade([['emerald', 1]], 'bookshelf', 4), trade([['emerald', 5], ['book', 1]], 'book', 1)],
+    cartographer: [trade([['paper', 24]], 'emerald', 1), trade([['glass', 11]], 'emerald', 1), trade([['emerald', 1]], 'compass', 1), trade([['emerald', 13], ['compass', 1]], 'glass', 4)],
+    cleric: [trade([['rotten_flesh', 32]], 'emerald', 1), trade([['gold_ingot', 3]], 'emerald', 1), trade([['emerald', 1]], 'redstone', 2), trade([['emerald', 4]], 'lapis_lazuli', 1), trade([['emerald', 5]], 'glowstone_dust', 2)],
+    armorer: [trade([['coal', 15]], 'emerald', 1), trade([['iron_ingot', 4]], 'emerald', 1), trade([['emerald', 5]], 'iron_helmet', 1), trade([['emerald', 9]], 'iron_chestplate', 1), trade([['emerald', 16]], 'diamond_chestplate', 1)],
+    weaponsmith: [trade([['coal', 15]], 'emerald', 1), trade([['iron_ingot', 4]], 'emerald', 1), trade([['emerald', 3]], 'iron_sword', 1), trade([['emerald', 10]], 'diamond_sword', 1), trade([['emerald', 16]], 'diamond_axe', 1)],
+    toolsmith: [trade([['coal', 15]], 'emerald', 1), trade([['iron_ingot', 4]], 'emerald', 1), trade([['emerald', 4]], 'iron_pickaxe', 1), trade([['emerald', 10]], 'diamond_pickaxe', 1), trade([['emerald', 10]], 'diamond_axe', 1)],
+    butcher: [trade([['porkchop', 15]], 'emerald', 1), trade([['beef', 15]], 'emerald', 1), trade([['emerald', 1]], 'cooked_porkchop', 5), trade([['emerald', 1]], 'cooked_beef', 5)],
+    leatherworker: [trade([['leather', 6]], 'emerald', 1), trade([['emerald', 1]], 'leather', 4), trade([['emerald', 6]], 'saddle', 1), trade([['emerald', 12]], 'leather', 8)],
+    mason: [trade([['stone', 20]], 'emerald', 1), trade([['stone', 10]], 'emerald', 1), trade([['emerald', 1]], 'stone_bricks', 4), trade([['emerald', 1]], 'quartz', 1)]
+  };
+
   /* New mobs */
   Object.assign(MOB_TYPES, {
     villager: { w: 0.3, h: 1.9, health: 20, speed: 1.25, passive: true, drops: [], name: 'Villager' },
@@ -243,7 +269,20 @@
     if (real === 'boat') m.mesh.scale.set(1.5, 0.45, 1.25);
   };
   const originalSpawnMob = Mobs.spawnMob.bind(Mobs);
-  Mobs.spawnMob = function(type, x, y, z) { const m = originalSpawnMob(type, x, y, z); if (m) { m.tamed = false; m.owner = null; m.saddled = false; m.trades = null; } return m; };
+  Mobs.spawnMob = function(type, x, y, z, serverState = null) {
+    const m = originalSpawnMob(type, x, y, z, serverState);
+    if (m) {
+      m.tamed = false; m.owner = null; m.saddled = false;
+      if (type === 'villager') {
+        m.profession = m.profession || (serverState && serverState.profession) || VILLAGER_PROFESSIONS[rng.int(VILLAGER_PROFESSIONS.length)];
+        m.villagerLevel = Math.max(1, Math.min(5, Number(m.villagerLevel) || 1));
+        m.tradeUses = Math.max(0, Number(m.tradeUses) || 0);
+        if (!serverState) Mobs.rebuild(m);
+      }
+      m.trades = null;
+    }
+    return m;
+  };
 
   const spawnBoat = () => {
     const e = Player.eye(), d = Player.lookDir(), t = Interaction.raycast(e[0], e[1], e[2], d[0], d[1], d[2], 8, true);
@@ -339,21 +378,77 @@
       if (type === 'smithing') return `<h2>Smithing Table</h2><p>Segure uma armadura. Consome 1 Coast Trim e 1 material.</p><div class="row">${stationButton('trim_iron', 'Acabamento Iron')}${stationButton('trim_gold', 'Acabamento Gold')}${stationButton('trim_diamond', 'Acabamento Diamond')}</div>${screens.playerInvHTML()}`;
       if (type === 'hive') return `<h2>Colmeia</h2><p>Abelhas produzem mel com o tempo.</p><small id="hive-honey"></small>${stationButton('collect_honey', 'Coletar mel')}${screens.playerInvHTML()}`;
       if (type === 'trading') {
-        const m = data.mob, trades = this.trades(m);
-        return `<h2>Villager Trading</h2><div class="col">${trades.map((t, i) => stationButton('trade_' + i, `${t.cost} ${prettify(t.pay)} -> ${t.count} ${prettify(t.get)}`)).join('')}</div>${screens.playerInvHTML()}`;
+        const m = data.mob, trades = this.trades(m), selected = trades[screens.tradeSelection] || trades[0];
+        screens.containers.tradeInput = screens.tradeInputs;
+        const profession = VILLAGER_LABELS[m.profession] || VILLAGER_LABELS.unemployed;
+        const level = VILLAGER_LEVELS[Math.max(0, Math.min(4, (Number(m.villagerLevel) || 1) - 1))];
+        const offerRows = trades.map((t, i) => {
+          const selectedClass = i === screens.tradeSelection ? ' selected' : '';
+          const disabled = i >= (Number(m.villagerLevel) || 1) ? ' locked' : '';
+          return `<button class="trade-offer${selectedClass}${disabled}" data-trade="${i}" ${disabled ? 'disabled' : ''}>${this.tradeStackHTML(t.in[0])}<span class="trade-arrow">➜</span>${this.tradeStackHTML(t.out)}<small>${i >= (Number(m.villagerLevel) || 1) ? `Nível ${i + 1}` : ''}</small></button>`;
+        }).join('');
+        return `<div class="trade-ui">
+          <aside class="trade-offers"><h2>Trocas</h2><div class="trade-offer-list">${offerRows}</div></aside>
+          <main class="trade-main">
+            <header class="trade-header"><h2>${profession} <span>— ${level}</span></h2><div class="trade-xp"><i style="width:${Math.min(100, ((Number(m.tradeUses) || 0) % 5) * 20)}%"></i></div></header>
+            <div class="trade-form"><div class="trade-inputs">${screens.slotHTML('tradeInput', 0)}${screens.slotHTML('tradeInput', 1)}</div><div class="trade-arrow-big">➜</div><div class="trade-output" data-action="complete_trade"><img alt=""><span class="cnt"></span></div></div>
+            <div class="trade-hint">Coloque os itens pedidos nos espaços para realizar a troca.</div>
+            <div class="trade-inventory-title">Inventário</div>${screens.gridHTML('inv', 27, 9, 9)}<div class="trade-hotbar">${screens.gridHTML('inv', 9, 9, 0)}</div>
+          </main>
+        </div>`;
       }
       if (type === 'advancements') return `<h2>Advancements</h2><div class="col">${Object.entries(AdvancementDefs).map(([id, title]) => `<div style="padding:7px;background:${Advancements.unlocked[id] ? '#6a4' : '#777'};border:1px solid #333">${Advancements.unlocked[id] ? '✓' : '□'} ${title}</div>`).join('')}</div><h3>Receitas desbloqueadas (${Object.keys(Advancements.recipes).length})</h3><small>${Object.keys(Advancements.recipes).map(prettify).join(' · ') || 'Colete itens e fabrique para descobrir receitas.'}</small>`;
       return '';
     },
-    trades(m) { if (!m.trades) m.trades = [{ pay: 'wheat', cost: 20, get: 'emerald', count: 1 }, { pay: 'emerald', cost: 3, get: 'bread', count: 6 }, { pay: 'emerald', cost: 4, get: 'blaze_powder', count: 2 }, { pay: 'emerald', cost: 3, get: 'quartz', count: 4 }, { pay: 'emerald', cost: 5, get: 'slime_ball', count: 2 }, { pay: 'emerald', cost: 7, get: 'coast_armor_trim_smithing_template', count: 1 }, { pay: 'emerald', cost: 8, get: 'saddle', count: 1 }, { pay: 'emerald', cost: 32, get: 'elytra', count: 1 }]; return m.trades; },
-    bind(type, panel, screens) { panel.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', () => { this.action(b.dataset.action, type, screens); })); },
+    trades(m) {
+      if (!m.trades) m.trades = VILLAGER_TRADES[m.profession] || VILLAGER_TRADES.farmer;
+      return m.trades;
+    },
+    tradeStackHTML(stack) {
+      if (!stack) return '<span class="trade-stack"></span>';
+      const item = Items.get(stack.name), label = item ? item.displayName : prettify(stack.name);
+      return `<span class="trade-stack"><img src="${Atlas.getIcon(stack.name)}" alt="${label}"><b>${stack.count}</b></span>`;
+    },
+    tradeReady(screens, selected) {
+      if (!selected) return false;
+      return selected.in.every((need, index) => {
+        const slot = screens.tradeInputs[index];
+        return slot && slot.name === need.name && Number(slot.count) >= need.count;
+      });
+    },
+    bind(type, panel, screens) {
+      panel.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', () => { this.action(b.dataset.action, type, screens); }));
+      panel.querySelectorAll('[data-trade]').forEach(b => b.addEventListener('click', () => { screens.tradeSelection = Number(b.dataset.trade) || 0; screens.render(); }));
+      this.refreshTrade(panel, screens);
+    },
+    refreshTrade(panel, screens) {
+      if (screens.current !== 'trading') return;
+      const m = screens.data && screens.data.mob, selected = m && this.trades(m)[screens.tradeSelection];
+      const output = panel.querySelector('.trade-output');
+      if (output && selected) {
+        output.querySelector('img').src = Atlas.getIcon(selected.out.name);
+        output.querySelector('.cnt').textContent = selected.out.count > 1 ? selected.out.count : '';
+        output.classList.toggle('ready', this.tradeReady(screens, selected));
+        output.title = this.tradeReady(screens, selected) ? 'Realizar troca' : 'Faltam itens para esta troca';
+      }
+    },
     refresh(type, screens) {
       if (type === 'brewing') { const t = world.getTile(screens.data.x, screens.data.y, screens.data.z), el = $('brew-progress'); if (t && el) el.textContent = t.brew ? `Preparando: ${Math.ceil(t.brew / 20)}s` : 'Pronto'; }
       if (type === 'blast_furnace') { const t = world.getTile(screens.data.x, screens.data.y, screens.data.z), el = $('blast-progress'); if (t && el) el.style.width = Math.min(100, t.cook) + '%'; }
       if (type === 'hive') { const t = world.getTile(screens.data.x, screens.data.y, screens.data.z), el = $('hive-honey'); if (t && el) el.textContent = `Mel: ${t.honey || 0}/3`; }
+      if (type === 'trading') this.refreshTrade($('screen-panel'), screens);
     },
     action(action, type, screens) {
-      if (action.startsWith('enchant_')) {
+      if (action === 'complete_trade') {
+        const m = screens.data.mob, selected = this.trades(m)[screens.tradeSelection];
+        if (!this.tradeReady(screens, selected)) return HUD.message('Coloque os itens pedidos nos espaços da troca.');
+        selected.in.forEach((need, index) => { const slot = screens.tradeInputs[index]; slot.count -= need.count; if (slot.count <= 0) screens.tradeInputs[index] = null; });
+        give(selected.out.name, selected.out.count);
+        m.tradeUses = (Number(m.tradeUses) || 0) + 1;
+        m.villagerLevel = Math.min(5, Math.max(1, 1 + Math.floor(m.tradeUses / 5)));
+        if (m.serverControlled) Multiplayer.mobAction(m, 'trade');
+        SoundFX.playAt('mob_villager_yes', m.x, m.y + 1.4, m.z); Advancements.grant('what_a_deal');
+      } else if (action.startsWith('enchant_')) {
         const kind = action.slice(8), held = Player.held(), costs = { efficiency: [1, 1], sharpness: [2, 2], unbreaking: [3, 3] }, c = costs[kind];
         if (!held || !Items.get(held.name) || (!Items.get(held.name).tool && Items.get(held.name).type !== 'weapon')) return HUD.message('Selecione uma ferramenta ou arma.');
         if (!Player.isCreative() && (player.level <= c[1] || Inventory.count(player.inventory, 'lapis_lazuli') < c[0])) return HUD.message('Lapis ou niveis insuficientes.');
@@ -373,9 +468,6 @@
         const tile = world.getTile(screens.data.x, screens.data.y, screens.data.z); if (!tile) return;
         if (tile.honey <= 0 || !consumeNamed('glass_bottle', 1)) return HUD.message('A colmeia ainda nao tem mel ou faltam garrafas.');
         tile.honey--; give('honey_bottle', 1); SoundFX.play('success'); Advancements.grant('bee_our_guest');
-      } else if (action.startsWith('trade_')) {
-        const t = this.trades(screens.data.mob)[+action.slice(6)]; if (!consumeNamed(t.pay, t.cost)) return HUD.message('Itens insuficientes para a troca.');
-        give(t.get, t.count); SoundFX.playAt('mob_villager_yes', screens.data.mob.x, screens.data.mob.y + 1.4, screens.data.mob.z); Advancements.grant('what_a_deal');
       }
       HUD.refreshHotbar(); screens.render();
     }

@@ -10,6 +10,7 @@ const mysql = require('mysql2/promise');
 const WebSocket = require('ws');
 const { helpText, parseAdminCommand, MOB_TYPES } = require('./admin-commands');
 const MOB_SOUND_SPECS = require('./assets/mob-sounds-26.2');
+const { NATURALIST_MOBS, NATURALIST_SOUND_SPECS } = require('./assets/naturalist-mobs');
 const { createMobAuthority } = require('./server-mobs');
 const MOB_SPAWN_CONFIG = require('./config/mob-spawn.json');
 
@@ -20,7 +21,127 @@ const SESSION_COOKIE = 'minezera_sid';
 const SESSION_TTL_MS = Number.parseInt(process.env.SESSION_TTL_HOURS || '168', 10) * 60 * 60 * 1000;
 const PUBLIC_BASE_PATH = normalizeBasePath(process.env.PUBLIC_BASE_PATH || '');
 const DEFAULT_SPAWN = { x: 16.32, y: 71, z: 31.11 };
-const WORLD_PAYLOAD_VERSION = 3;
+// The world is authoritative on the Node server. Clients only send changed
+// chunk snapshots; this version must match the client world format.
+const WORLD_PAYLOAD_VERSION = 5;
+const WORLD_STORAGE_PATH = path.join(ROOT, 'storage', 'world', 'world.json');
+const WORLD_AUTOSAVE_MS = 60 * 1000;
+const WORLD_DEFAULT_SEED = 'minezera-ilha-biomas-v5-1500-vila';
+
+const worldStore = {
+  version: WORLD_PAYLOAD_VERSION,
+  seed: WORLD_DEFAULT_SEED,
+  time: 1000,
+  day: 0,
+  mode: 'survival',
+  raining: false,
+  chunks: new Map(),
+  blockCache: new Map(),
+  dirty: false,
+  savePromise: Promise.resolve()
+};
+
+function worldChunkKey(cx, cz) { return `${Number(cx) | 0},${Number(cz) | 0}`; }
+
+function validWorldChunk(chunk) {
+  return chunk && Number.isInteger(Number(chunk.cx)) && Number.isInteger(Number(chunk.cz))
+    && Array.isArray(chunk.b) && Array.isArray(chunk.m);
+}
+
+function worldPayload() {
+  return {
+    version: worldStore.version,
+    seed: worldStore.seed,
+    time: worldStore.time,
+    day: worldStore.day,
+    mode: worldStore.mode,
+    raining: worldStore.raining,
+    chunks: [...worldStore.chunks.values()]
+  };
+}
+
+async function loadWorldStore() {
+  try {
+    const raw = await fs.promises.readFile(WORLD_STORAGE_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    const payload = parsed && parsed.world ? parsed.world : parsed;
+    if (!payload || payload.version !== WORLD_PAYLOAD_VERSION || !Array.isArray(payload.chunks)) {
+      console.warn('[world] arquivo ignorado: versao invalida ou formato antigo.');
+      return;
+    }
+    worldStore.seed = String(payload.seed || WORLD_DEFAULT_SEED);
+    worldStore.time = Number(payload.time) || 1000;
+    worldStore.day = Number(payload.day) || 0;
+    worldStore.mode = payload.mode === 'creative' ? 'creative' : 'survival';
+    worldStore.raining = !!payload.raining;
+    worldStore.chunks.clear();
+    worldStore.blockCache.clear();
+    for (const chunk of payload.chunks) if (validWorldChunk(chunk)) worldStore.chunks.set(worldChunkKey(chunk.cx, chunk.cz), chunk);
+    console.log(`[world] carregado do servidor: ${worldStore.chunks.size} chunks modificados.`);
+  } catch (err) {
+    if (err.code !== 'ENOENT') console.error('[world] falha ao carregar:', err.message);
+  }
+}
+
+function saveWorldStore(force = false) {
+  if (!force && !worldStore.dirty) return worldStore.savePromise;
+  const snapshot = JSON.stringify({ ok: true, world: worldPayload() });
+  worldStore.dirty = false;
+  worldStore.savePromise = worldStore.savePromise
+    .catch(() => {})
+    .then(async () => {
+      await fs.promises.mkdir(path.dirname(WORLD_STORAGE_PATH), { recursive: true });
+      await fs.promises.writeFile(WORLD_STORAGE_PATH, snapshot, 'utf8');
+      console.log(`[world] salvo no servidor: ${worldStore.chunks.size} chunks modificados.`);
+    })
+    .catch((err) => { worldStore.dirty = true; console.error('[world] falha ao salvar:', err.message); });
+  return worldStore.savePromise;
+}
+
+function acceptWorldChunk(chunk) {
+  if (!validWorldChunk(chunk)) return false;
+  const normalized = {
+    ...chunk,
+    cx: Number(chunk.cx) | 0,
+    cz: Number(chunk.cz) | 0,
+    b: chunk.b.slice(),
+    m: chunk.m.slice(),
+    t: Array.isArray(chunk.t) ? chunk.t : [],
+    bio: Array.isArray(chunk.bio) ? chunk.bio.slice() : []
+  };
+  if (normalized.b.length > 131072 || normalized.m.length > 131072) return false;
+  worldStore.chunks.set(worldChunkKey(normalized.cx, normalized.cz), normalized);
+  worldStore.blockCache.delete(worldChunkKey(normalized.cx, normalized.cz));
+  worldStore.dirty = true;
+  return normalized;
+}
+
+// Chunk snapshots use the same [block, run] RLE as the browser. Mobs need a
+// cheap solid-block lookup on the authoritative server so they cannot walk
+// through player-built walls or structures received from a client.
+function worldBlockId(x, y, z) {
+  const iy = Number(y) | 0;
+  if (iy < 0 || iy >= 128) return 0;
+  const cx = Math.floor(Number(x) / 16), cz = Math.floor(Number(z) / 16);
+  const chunk = worldStore.chunks.get(worldChunkKey(cx, cz));
+  if (!chunk) return null;
+  const key = worldChunkKey(cx, cz);
+  let blocks = worldStore.blockCache.get(key);
+  if (!blocks) {
+    blocks = new Uint8Array(16 * 128 * 16);
+    let offset = 0;
+    for (let i = 0; i < chunk.b.length && offset < blocks.length; i += 2) {
+      const value = Number(chunk.b[i]) || 0;
+      const run = Math.max(0, Number(chunk.b[i + 1]) || 0);
+      blocks.fill(value, offset, Math.min(blocks.length, offset + run));
+      offset += run;
+    }
+    worldStore.blockCache.set(key, blocks);
+  }
+  const lx = ((Math.floor(Number(x)) % 16) + 16) % 16;
+  const lz = ((Math.floor(Number(z)) % 16) + 16) % 16;
+  return blocks[(lx << 11) | (lz << 7) | iy] || 0;
+}
 
 const DB_CONFIG = {
   host: process.env.DB_HOST || '127.0.0.1',
@@ -105,7 +226,13 @@ const ADMIN_MOB_CATALOG = [
   { id: 'vex', name: 'Vex', kind: 'Hostil voador', health: 14, damage: 5, element: 'Nenhum', speed: 3.5, spawn: 'Evocador' },
   { id: 'illusioner', name: 'Illusioner', kind: 'Hostil à distância', health: 32, damage: 4, element: 'Nenhum', speed: 2.5, spawn: 'Invasão' },
   { id: 'evoker', name: 'Evoker', kind: 'Hostil à distância', health: 24, damage: 6, element: 'Nenhum', speed: 2, spawn: 'Invasão' },
-  { id: 'vindicator', name: 'Vindicator', kind: 'Hostil', health: 24, damage: 7, element: 'Nenhum', speed: 2.5, spawn: 'Invasão' }
+  { id: 'vindicator', name: 'Vindicator', kind: 'Hostil', health: 24, damage: 7, element: 'Nenhum', speed: 2.5, spawn: 'Invasão' },
+  { id: 'wither', name: 'Wither', kind: 'Hostil voador', health: 300, damage: 8, element: 'Explosão', speed: 1.2, spawn: 'Estrutura de almas' },
+  ...Object.values(NATURALIST_MOBS).map((mob) => ({
+    id: mob.id, name: mob.name, kind: mob.damage > 0 ? 'Hostil' : 'Passivo',
+    health: mob.health, damage: mob.damage, element: mob.element || 'Nenhum', speed: mob.speed,
+    spawn: 'Naturalist 2.0.3', naturalist: true
+  }))
 ];
 
 const ADMIN_MOB_IMAGES = Object.freeze({
@@ -117,12 +244,13 @@ const ADMIN_MOB_IMAGES = Object.freeze({
   slime: 'slime.png', magma_cube: 'magmacube.png', silverfish: 'silverfish.png', guardian: 'guardian.png',
   phantom: 'phantom.png', polar_bear: 'polarbear.png', rabbit: 'rabbit_white.png', bat: 'bat.png',
   iron_golem: 'iron_golem.png', wandering_trader: 'wandering_trader.png', goat: 'goat.png', fox: 'fox.png',
-  wither_skeleton: 'wither_skeleton.png', piglin: 'piglin.png', ravager: 'ravager.png', vex: 'vex.png',
-  illusioner: 'illusioner.png', evoker: 'evoker.png', vindicator: 'vindicator.png'
+  wither_skeleton: 'wither_skeleton.png', wither: 'wither.png', piglin: 'piglin.png', ravager: 'ravager.png', vex: 'vex.png',
+  illusioner: 'illusioner.png', evoker: 'evoker.png', vindicator: 'vindicator.png',
+  ...Object.fromEntries(Object.values(NATURALIST_MOBS).map((mob) => [mob.id, mob.image]))
 });
-const ADMIN_MOB_SOUNDS = Object.freeze(Object.fromEntries(Object.entries(MOB_SOUND_SPECS).map(([mob, events]) => [
+const ADMIN_MOB_SOUNDS = Object.freeze(Object.fromEntries(Object.entries({ ...MOB_SOUND_SPECS, ...NATURALIST_SOUND_SPECS }).map(([mob, events]) => [
   mob,
-  Object.entries(events).map(([event, sounds]) => `${event}: ${sounds.map(sound => `${sound}.ogg`).join(', ')}`).join(' | ')
+  Object.entries(events).map(([event, sounds]) => `${event}: ${sounds.map(sound => String(sound).endsWith('.ogg') ? sound : `${sound}.ogg`).join(', ')}`).join(' | ')
 ])));
 
 let pool;
@@ -408,6 +536,12 @@ function requireCsrf(session, form) {
   }
 }
 
+function renewFormSession(res) {
+  const session = createSession(0);
+  res.setHeader('Set-Cookie', cookieHeader(session.id));
+  return session;
+}
+
 function layout(title, content, kind = 'auth') {
   const shell = kind === 'panel' ? 'panel-shell' : 'auth-shell';
   return `<!doctype html>
@@ -631,7 +765,7 @@ function buildItemCatalog() {
     'crafting_table', 'furnace', 'chest', 'torch', 'ladder', ...wool.map((c) => `${c}_wool`),
     'glowstone', 'obsidian', 'tnt', 'bookshelf', 'farmland', 'dirt_path', 'snow', 'snow_block', 'ice',
     'cactus', 'dead_bush', 'short_grass', 'fern', 'dandelion', 'poppy', 'cornflower', 'oxeye_daisy',
-    'pumpkin', 'jack_o_lantern', 'spawner', 'netherrack', 'end_stone', 'redstone_torch', 'lever',
+    'pumpkin', 'jack_o_lantern', 'soul_sand', 'wither_skeleton_skull', 'spawner', 'netherrack', 'end_stone', 'redstone_torch', 'lever',
     'redstone_lamp', 'oak_door'
   ];
   const materials = ['stick', 'coal', 'charcoal', 'iron_ingot', 'gold_ingot', 'diamond', 'emerald', 'redstone', 'lapis_lazuli', 'glowstone_dust', 'gunpowder', 'flint', 'string', 'feather', 'leather', 'bone', 'book', 'snowball', 'wheat', 'wheat_seeds', 'egg', 'paper', 'sugar'];
@@ -890,29 +1024,58 @@ async function adminPage(user, { tab = 'servidor', message = '', sort = 'name', 
        ORDER BY c.id DESC
        LIMIT 200`
     );
-    body = `<section class="skills"><h2>Contas</h2>${message ? `<div class="alert">${htmlEscape(message)}</div>` : ''}
-      <div style="overflow:auto"><table style="width:100%; border-spacing:0 8px;">
-      <thead><tr><th>ID</th><th>Login</th><th>Personagem</th><th>Tipo</th><th>Nivel</th><th>Kills</th><th>Acoes</th></tr></thead>
-      <tbody>${accounts.map((a) => `<tr>
-        <td>${Number(a.id)}</td>
-        <td>${htmlEscape(a.login)}</td>
-        <td>${htmlEscape(a.personagem_nome || '')}</td>
-        <td>${Number(a.tipo || 1)}</td>
-        <td>${Number(a.nivel || 0)}</td>
-        <td>${Number(a.kills || 0)}</td>
-        <td>
-          <form method="post" action="${htmlEscape(appUrl('/admin/accounts'))}" style="display:grid; gap:6px; min-width:260px;">
-            <input type="hidden" name="csrf_token" value="${htmlEscape(user.csrf)}">
-            <input type="hidden" name="id" value="${Number(a.id)}">
-            <input name="login" value="${htmlEscape(a.login)}" placeholder="login">
-            <input name="personagem" value="${htmlEscape(a.personagem_nome || '')}" placeholder="personagem">
-            <input name="tipo" type="number" min="1" max="3" value="${Number(a.tipo || 1)}" title="3 = admin">
-            <input name="senha" type="password" placeholder="nova senha opcional">
-            <button name="action" value="update" type="submit">Salvar</button>
-            <button name="action" value="delete" type="submit" onclick="return confirm('Excluir esta conta?')">Excluir</button>
-          </form>
-        </td>
-      </tr>`).join('')}</tbody></table></div></section>`;
+    const accountIds = accounts.map((a) => Number(a.id)).join(',');
+    body = `<section class="skills admin-accounts-page"><h2>Contas</h2>${message ? `<div class="alert">${htmlEscape(message)}</div>` : ''}
+      <p class="accounts-help">Edite os campos diretamente na tabela. Use a caixa da coluna ID para marcar contas e excluir somente as selecionadas.</p>
+      <form method="post" action="${htmlEscape(appUrl('/admin/accounts'))}" id="accounts-form">
+        <input type="hidden" name="csrf_token" value="${htmlEscape(user.csrf)}">
+        <input type="hidden" name="account_ids" value="${htmlEscape(accountIds)}">
+        <input type="hidden" name="selected_ids_csv" id="selected-account-ids" value="">
+        <div class="accounts-toolbar">
+          <label class="accounts-select-all"><input type="checkbox" id="select-all-accounts"> Selecionar todos</label>
+          <span class="accounts-selected-count" id="selected-account-count">0 selecionadas</span>
+          <button class="button-primary accounts-save" name="action" value="update_batch" type="submit">Salvar alterações</button>
+          <button class="button-secondary accounts-delete" name="action" value="delete_batch" type="submit" data-confirm="Excluir somente as contas selecionadas?">Excluir selecionadas</button>
+        </div>
+        <div class="accounts-table-wrap"><table class="accounts-table">
+          <thead><tr><th>ID</th><th>Login</th><th>Personagem</th><th>Tipo</th><th>Nível</th><th>Kills</th><th>Nova senha</th></tr></thead>
+          <tbody>${accounts.map((a) => `<tr>
+            <td><label class="account-id-select"><input class="account-select" type="checkbox" value="${Number(a.id)}"> <strong>${Number(a.id)}</strong></label></td>
+            <td><input name="login_${Number(a.id)}" value="${htmlEscape(a.login)}" required autocomplete="off"></td>
+            <td><input name="personagem_${Number(a.id)}" value="${htmlEscape(a.personagem_nome || '')}" required autocomplete="off"></td>
+            <td><input name="tipo_${Number(a.id)}" type="number" min="1" max="3" value="${Number(a.tipo || 1)}" title="3 = admin"></td>
+            <td><input name="nivel_${Number(a.id)}" type="number" min="1" max="999999" value="${Number(a.nivel || 1)}"></td>
+            <td><input name="kills_${Number(a.id)}" type="number" min="0" max="999999999" value="${Number(a.kills || 0)}"></td>
+            <td><input name="senha_${Number(a.id)}" type="password" minlength="6" placeholder="Opcional" autocomplete="new-password"></td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </form>
+      <script>
+        (() => {
+          const form = document.getElementById('accounts-form');
+          if (!form) return;
+          const boxes = [...form.querySelectorAll('.account-select')];
+          const selectAll = document.getElementById('select-all-accounts');
+          const selected = document.getElementById('selected-account-ids');
+          const count = document.getElementById('selected-account-count');
+          const refresh = () => {
+            const ids = boxes.filter((box) => box.checked).map((box) => box.value);
+            selected.value = ids.join(',');
+            count.textContent = ids.length + (ids.length === 1 ? ' selecionada' : ' selecionadas');
+            selectAll.checked = boxes.length > 0 && ids.length === boxes.length;
+            selectAll.indeterminate = ids.length > 0 && ids.length < boxes.length;
+          };
+          boxes.forEach((box) => box.addEventListener('change', refresh));
+          selectAll.addEventListener('change', () => { boxes.forEach((box) => { box.checked = selectAll.checked; }); refresh(); });
+          form.addEventListener('submit', (event) => {
+            const submitter = event.submitter;
+            refresh();
+            if (submitter && submitter.value === 'delete_batch' && !selected.value) { event.preventDefault(); alert('Selecione pelo menos uma conta para excluir.'); return; }
+            if (submitter && submitter.value === 'delete_batch' && !confirm(submitter.dataset.confirm)) event.preventDefault();
+          });
+        })();
+      </script>
+    </section>`;
   } else if (tab === 'itens') {
     return adminItemsPage(user, { message });
   } else if (tab === 'montador') {
@@ -1032,8 +1195,17 @@ async function adminPage(user, { tab = 'servidor', message = '', sort = 'name', 
 
 async function handleLogin(req, res) {
   const form = await readForm(req);
-  const session = getSession(req) || createSession(0);
-  requireCsrf(session, form);
+  const session = getSession(req);
+  try {
+    requireCsrf(session, form);
+  } catch (err) {
+    const freshSession = renewFormSession(res);
+    return sendHtml(res, loginPage({
+      error: 'Sua sessao expirou. O formulario foi atualizado; envie novamente.',
+      csrf: freshSession.csrf,
+      ranking: await topPlayers()
+    }), 400);
+  }
   const login = String(form.login || '').trim();
   const senha = String(form.senha || '');
   if (!login || !senha) return sendHtml(res, loginPage({ error: 'Preencha login e senha.', csrf: session.csrf, ranking: await topPlayers() }), 400);
@@ -1052,8 +1224,16 @@ async function handleLogin(req, res) {
 
 async function handleRegister(req, res) {
   const form = await readForm(req);
-  const session = getSession(req) || createSession(0);
-  requireCsrf(session, form);
+  const session = getSession(req);
+  try {
+    requireCsrf(session, form);
+  } catch (err) {
+    const freshSession = renewFormSession(res);
+    return sendHtml(res, registerPage({
+      error: 'Sua sessao expirou. O formulario foi atualizado; envie novamente.',
+      csrf: freshSession.csrf
+    }), 400);
+  }
   const login = String(form.login || '').trim();
   const senha = String(form.senha || '');
   const confirmarSenha = String(form.confirmar_senha || '');
@@ -1078,7 +1258,7 @@ async function handleRegister(req, res) {
          pos_x, pos_y, pos_z,
          skill_lenhador, skill_cooking, skill_mining, skill_crafting,
          skill_farming, forca, kills)
-       VALUES (?, ?, ?, 1, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+       VALUES (?, ?, ?, 1, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
       [contaId, personagem, classeId, 20, DEFAULT_SPAWN.x, DEFAULT_SPAWN.y, DEFAULT_SPAWN.z, 1, 1, 1, 1, 1, 10]
     );
     await conn.commit();
@@ -1242,24 +1422,22 @@ async function handleSavePersonagemApi(req, res) {
 async function handleMundoApi(req, res) {
   const user = await currentUser(req);
   if (!user) return sendJson(res, { ok: false, erro: 'nao_autenticado' }, 401);
-  const worldDir = path.join(ROOT, 'storage', 'world');
-  const worldPath = path.join(worldDir, 'world.json');
-  await fs.promises.mkdir(worldDir, { recursive: true });
 
   if (req.method === 'GET') {
-    try {
-      const data = await fs.promises.readFile(worldPath, 'utf8');
-      send(res, 200, data, { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store' });
-    } catch (e) {
-      if (e.code === 'ENOENT') sendJson(res, { ok: true, world: null });
-      else throw e;
-    }
+    sendJson(res, { ok: true, world: worldPayload() });
     return;
   }
 
   const payload = await readJson(req, 100 * 1024 * 1024);
   if (!payload || payload.version !== WORLD_PAYLOAD_VERSION) return sendJson(res, { ok: false, erro: 'mundo_invalido' }, 400);
-  await fs.promises.writeFile(worldPath, JSON.stringify({ ok: true, world: payload }), 'utf8');
+  // Compatibility endpoint for the admin save button. The server remains the
+  // only process that writes world.json; clients never write that file.
+  worldStore.seed = String(payload.seed || worldStore.seed);
+  worldStore.time = Number(payload.time) || worldStore.time;
+  worldStore.day = Number(payload.day) || worldStore.day;
+  worldStore.raining = !!payload.raining;
+  for (const chunk of payload.chunks || []) acceptWorldChunk(chunk);
+  await saveWorldStore(true);
   sendJson(res, { ok: true });
 }
 
@@ -1308,8 +1486,61 @@ async function handleAdminAccounts(req, res) {
   const form = await readForm(req);
   requireCsrf(getSession(req), form);
 
-  const id = Number.parseInt(form.id, 10);
   const action = String(form.action || '');
+  const parseIds = (value) => [...new Set(String(value || '').split(',').map((raw) => Number.parseInt(raw.trim(), 10)).filter((value) => Number.isInteger(value) && value > 0))];
+
+  if (action === 'delete_batch') {
+    const ids = parseIds(form.selected_ids_csv);
+    if (!ids.length) return sendHtml(res, await adminPage(user, { tab: 'contas', message: 'Selecione pelo menos uma conta para excluir.' }), 400);
+    const deletable = ids.filter((accountId) => accountId !== Number(user.conta_id));
+    if (deletable.length) await query('DELETE FROM contas WHERE id IN (' + deletable.map(() => '?').join(',') + ')', deletable);
+    const skipped = ids.length - deletable.length;
+    const suffix = skipped ? ' Sua conta logada foi preservada.' : '';
+    return sendHtml(res, await adminPage(user, { tab: 'contas', message: `${deletable.length} conta(s) excluida(s).${suffix}` }));
+  }
+
+  if (action === 'update_batch') {
+    const ids = parseIds(form.account_ids);
+    if (!ids.length) return sendHtml(res, await adminPage(user, { tab: 'contas', message: 'Nenhuma conta para atualizar.' }), 400);
+    const updates = [];
+    for (const accountId of ids) {
+      const login = String(form[`login_${accountId}`] || '').trim();
+      const personagem = String(form[`personagem_${accountId}`] || '').trim();
+      const tipo = Number.parseInt(form[`tipo_${accountId}`], 10);
+      const nivel = Number.parseInt(form[`nivel_${accountId}`], 10);
+      const kills = Number.parseInt(form[`kills_${accountId}`], 10);
+      const senha = String(form[`senha_${accountId}`] || '');
+      if (!validLogin(login)) return sendHtml(res, await adminPage(user, { tab: 'contas', message: `Login invalido na conta ${accountId}.` }), 400);
+      if (!validCharacterName(personagem)) return sendHtml(res, await adminPage(user, { tab: 'contas', message: `Personagem invalido na conta ${accountId}.` }), 400);
+      if (![1, 2, 3].includes(tipo)) return sendHtml(res, await adminPage(user, { tab: 'contas', message: `Tipo invalido na conta ${accountId}. Use 1, 2 ou 3.` }), 400);
+      if (!Number.isInteger(nivel) || nivel < 1 || nivel > 999999) return sendHtml(res, await adminPage(user, { tab: 'contas', message: `Nivel invalido na conta ${accountId}.` }), 400);
+      if (!Number.isInteger(kills) || kills < 0 || kills > 999999999) return sendHtml(res, await adminPage(user, { tab: 'contas', message: `Kills invalidos na conta ${accountId}.` }), 400);
+      if (senha && senha.length < 6) return sendHtml(res, await adminPage(user, { tab: 'contas', message: `A nova senha da conta ${accountId} precisa ter pelo menos 6 caracteres.` }), 400);
+      updates.push({ accountId, login, personagem, tipo, nivel, kills, senha });
+    }
+    const conn = await (await db()).getConnection();
+    try {
+      await conn.beginTransaction();
+      for (const update of updates) {
+        if (update.senha) {
+          await conn.execute('UPDATE contas SET login = ?, tipo = ?, senha_hash = ? WHERE id = ?', [update.login, update.tipo, await bcrypt.hash(update.senha, 12), update.accountId]);
+        } else {
+          await conn.execute('UPDATE contas SET login = ?, tipo = ? WHERE id = ?', [update.login, update.tipo, update.accountId]);
+        }
+        await conn.execute('UPDATE personagens SET nome = ?, nivel = ?, kills = ? WHERE conta_id = ?', [update.personagem, update.nivel, update.kills, update.accountId]);
+      }
+      await conn.commit();
+      return sendHtml(res, await adminPage(user, { tab: 'contas', message: `${updates.length} conta(s) atualizada(s).` }));
+    } catch (e) {
+      await conn.rollback();
+      const msg = e && e.code === 'ER_DUP_ENTRY' ? 'Login ou personagem ja existe.' : 'Nao foi possivel atualizar as contas.';
+      return sendHtml(res, await adminPage(user, { tab: 'contas', message: msg }), 400);
+    } finally {
+      conn.release();
+    }
+  }
+
+  const id = Number.parseInt(form.id, 10);
   if (!Number.isInteger(id) || id <= 0) {
     return sendHtml(res, await adminPage(user, { tab: 'contas', message: 'Conta invalida.' }), 400);
   }
@@ -1612,6 +1843,7 @@ function broadcast(data, exceptId = null) {
 
 const mobAuthority = createMobAuthority({
   catalog: ADMIN_MOB_CATALOG,
+  getBlockId: worldBlockId,
   getPlayers: () => sockets.values(),
   broadcast,
   send: safeSend,
@@ -1673,7 +1905,7 @@ wss.on('connection', (ws, req, user) => {
   const previous = sockets.get(id);
   if (previous && previous.ws.readyState === WebSocket.OPEN) previous.ws.close(4000, 'nova_conexao');
 
-  const client = { id, nome, ws, state: null, lastChatAt: 0 };
+  const client = { id, nome, ws, state: null, lastChatAt: 0, lastWorldAt: 0 };
   sockets.set(id, client);
   console.log(`[multiplayer] ${nome} conectado (conta ${user.conta_id}, personagem ${id}). Online: ${sockets.size}`);
   const initialMobs = mobAuthority.snapshotFor(client);
@@ -1716,7 +1948,7 @@ wss.on('connection', (ws, req, user) => {
           action.weather = parsed.weather;
         } else if (parsed.command === 'm') {
           if (parsed.list) {
-            safeSend(ws, { type: 'chat', id: 'server', nome: 'Servidor', text: `Nomes das criaturas: ${MOB_TYPES.join(', ')}` });
+            safeSend(ws, { type: 'mob_list', id: 'server', nome: 'Servidor', names: MOB_TYPES, total: MOB_TYPES.length });
             return;
           }
           const state = client.state || {};
@@ -1790,6 +2022,26 @@ wss.on('connection', (ws, req, user) => {
       mobAuthority.handleAction(client, msg);
       return;
     }
+    if (msg.type === 'structure_construct') {
+      const structure = String(msg.structure || '');
+      const allowed = new Set(['iron_golem', 'wither']);
+      const x = Number(msg.x), y = Number(msg.y), z = Number(msg.z);
+      if (!allowed.has(structure) || ![x, y, z].every(Number.isFinite) || !client.state) return;
+      if (Math.hypot(client.state.x - x, client.state.y - y, client.state.z - z) > 8) return;
+      const mob = mobAuthority.spawnStructure(structure, x, y, z);
+      if (mob) broadcast({ type: 'chat', id: 'server', nome: 'Servidor', text: `${nome} criou ${structure === 'wither' ? 'um Wither' : 'um Golem de ferro'} com uma estrutura.` });
+      return;
+    }
+    if (msg.type === 'world_chunk') {
+      const now = Date.now();
+      if (now - client.lastWorldAt < 100) return;
+      client.lastWorldAt = now;
+      const chunk = acceptWorldChunk(msg.chunk);
+      if (!chunk) return;
+      safeSend(ws, { type: 'world_chunk_ack', cx: chunk.cx, cz: chunk.cz });
+      broadcast({ type: 'world_chunk', chunk }, id);
+      return;
+    }
     if (msg.type !== 'state' || typeof msg.state !== 'object') return;
     const s = msg.state;
     const state = {
@@ -1826,8 +2078,12 @@ wss.on('connection', (ws, req, user) => {
 
 async function start() {
   await migrateDatabase();
+  await loadWorldStore();
+  const worldAutosave = setInterval(() => { saveWorldStore().catch(() => {}); }, WORLD_AUTOSAVE_MS);
+  worldAutosave.unref();
   server.listen(PORT, HOST, () => {
     console.log(`Minezera Node server running at http://${HOST === '0.0.0.0' ? '127.0.0.1' : HOST}:${PORT}/`);
+    console.log(`[world] autoridade do mapa ativa; autosave a cada ${WORLD_AUTOSAVE_MS / 1000}s.`);
   });
 }
 
@@ -1836,13 +2092,14 @@ start().catch((err) => {
   process.exit(1);
 });
 
-function shutdown(signal) {
+async function shutdown(signal) {
   console.log(`\n${signal} received, shutting down Minezera server...`);
   mobAuthority.stop();
   for (const client of sockets.values()) {
     try { client.ws.close(1001, 'server_shutdown'); } catch (e) { /* ignore */ }
   }
   wss.close();
+  await saveWorldStore(true);
   const forceExit = setTimeout(() => process.exit(0), 2500);
   forceExit.unref();
   server.close(async () => {

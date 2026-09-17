@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $raw = (string) file_get_contents('php://input');
 $payload = json_decode($raw, true);
 
-if (!is_array($payload) || ($payload['version'] ?? null) !== 1) {
+if (!is_array($payload) || ($payload['version'] ?? null) !== 5) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'erro' => 'mundo_invalido']);
     exit;

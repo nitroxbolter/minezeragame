@@ -68,6 +68,7 @@
   #chat-log { position: absolute; left: 8px; bottom: 158px; width: min(460px, calc(100vw - 16px)); max-height: 190px; overflow: hidden; font-size: 13px; text-shadow: 1px 1px #000; pointer-events: none; }
   #chat-log .chat-line { width: fit-content; max-width: 100%; background: rgba(0,0,0,0.62); padding: 4px 7px; margin-top: 3px; overflow-wrap: anywhere; }
   #chat-log .chat-name { color: #ffe27a; }
+  #chat-log .mob-list { width: min(520px, calc(100vw - 16px)); max-height: min(360px, 52vh); overflow-y: auto; white-space: pre-wrap; pointer-events: auto; scrollbar-color: #aaa #222; }
   #chat-box { position: absolute; left: 8px; bottom: 112px; width: min(460px, calc(100vw - 16px)); padding: 4px; background: rgba(0,0,0,0.78); border: 2px solid #aaa; box-shadow: 2px 2px #000; pointer-events: auto; }
   #chat-input { display: block; width: 100%; min-width: 0; font: inherit; font-size: 13px; padding: 7px 8px; color: #fff; background: #0b1118; border: 1px solid #68727d; outline: none; user-select: text; -webkit-user-select: text; }
   #chat-input:focus { border-color: #ffe27a; }
@@ -125,16 +126,94 @@
   .flame { width: 16px; height: 16px; background: #444; margin: 4px auto; position: relative; overflow: hidden; }
   .flame i { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(#ffd23c, #ff6a00); height: 0; }
   .catalog { display: grid; grid-template-columns: repeat(9, 40px); max-height: 260px; overflow-y: auto; border: 2px solid #555; background: #999; }
+  /* Minecraft-style creative inventory (admin) */
+  #screen-panel.creative-screen-panel { width: min(850px, calc(100vw - 18px)); padding: 8px; background: #c6c6c6; color: #333; overflow: hidden; }
+  .creative-ui { width: 100%; font-family: monospace; }
+  .creative-top-tabs, .creative-bottom-tabs { display: flex; align-items: stretch; gap: 3px; }
+  .creative-top-tabs { height: 58px; margin-bottom: 4px; }
+  .creative-tab { flex: 1 1 0; min-width: 0; height: 58px; padding: 4px; background: #999; border: 3px solid; border-color: #eee #3f3f3f #3f3f3f #eee; cursor: pointer; position: relative; }
+  .creative-tab.active { background: #c6c6c6; border-bottom-color: #c6c6c6; }
+  .creative-tab:hover { background: #b5b5b5; }
+  .creative-tab img { width: 38px; height: 38px; image-rendering: pixelated; pointer-events: none; }
+  .creative-title { background: #c6c6c6; color: #404040; font-size: clamp(15px, 2vw, 22px); padding: 4px 8px 7px; border: 2px solid #555; border-bottom: 0; text-align: left; }
+  .creative-catalog { display: grid; grid-template-columns: minmax(0, 1fr) 22px; gap: 6px; min-height: 318px; max-height: 53vh; padding: 6px; background: #999; border: 3px solid; border-color: #555 #eee #eee #555; }
+  .creative-grid { display: grid; grid-template-columns: repeat(9, minmax(34px, 1fr)); grid-auto-rows: minmax(42px, 1fr); gap: 2px; min-width: 0; overflow-y: auto; padding-right: 1px; }
+  .creative-grid .slot { width: auto; height: auto; min-width: 0; min-height: 38px; }
+  .creative-grid .slot img { width: min(42px, 78%); height: min(42px, 78%); }
+  .creative-scrollbar { position: relative; background: #999; border: 3px solid; border-color: #555 #eee #eee #555; }
+  .creative-scrollbar i { position: absolute; left: 2px; right: 2px; top: 3px; height: 46px; background: #777; border: 2px solid; border-color: #eee #555 #555 #eee; }
+  .creative-hotbar { display: flex; justify-content: center; padding: 6px 0 3px; }
+  .creative-hotbar-slots { grid-template-columns: repeat(9, minmax(34px, 1fr)) !important; width: min(540px, 100%); }
+  .creative-hotbar-slots .slot { width: auto; height: 48px; }
+  .creative-hotbar-slots .slot img { width: 38px; height: 38px; }
+  .creative-bottom-tabs { justify-content: space-between; margin-top: 4px; }
+  .creative-bottom-tabs .creative-tab { flex: 0 1 72px; height: 50px; }
+  .creative-bottom-tabs .creative-tab img { width: 34px; height: 34px; }
+  @media (max-width: 620px) {
+    #screen-panel.creative-screen-panel { width: calc(100vw - 10px); padding: 5px; }
+    .creative-top-tabs { height: 47px; }
+    .creative-tab { height: 47px; padding: 2px; }
+    .creative-tab img { width: 30px; height: 30px; }
+    .creative-title { font-size: 14px; }
+    .creative-catalog { min-height: 250px; max-height: 52vh; grid-template-columns: minmax(0, 1fr) 16px; padding: 3px; gap: 3px; }
+    .creative-grid { grid-auto-rows: 38px; gap: 1px; }
+    .creative-grid .slot { min-height: 34px; }
+    .creative-hotbar-slots .slot { height: 40px; }
+    .creative-hotbar-slots .slot img { width: 30px; height: 30px; }
+    .creative-bottom-tabs .creative-tab { flex-basis: 48px; height: 42px; }
+    .creative-bottom-tabs .creative-tab img { width: 28px; height: 28px; }
+  }
+  .trade-ui { display: flex; width: min(700px, calc(100vw - 28px)); min-height: 360px; background: #c6c6c6; color: #333; }
+  .trade-offers { width: 205px; border-right: 3px solid #555; background: #999; padding: 6px; overflow-y: auto; }
+  .trade-offers h2 { padding: 0 8px; margin: 0 0 6px; }
+  .trade-offer-list { display: flex; flex-direction: column; gap: 3px; }
+  .trade-offer { display: flex; align-items: center; min-height: 52px; width: 100%; padding: 3px 5px; border: 2px solid; border-color: #777 #444 #444 #777; background: #aaa; color: #222; font: 11px monospace; cursor: pointer; text-align: left; }
+  .trade-offer.selected { background: #c4c4c4; border-color: #fff #555 #555 #fff; box-shadow: inset 0 0 0 1px #777; }
+  .trade-offer.locked { opacity: .48; cursor: not-allowed; }
+  .trade-offer small { margin-left: auto; color: #555; }
+  .trade-stack { display: inline-flex; position: relative; align-items: center; justify-content: center; width: 42px; height: 42px; flex: 0 0 42px; }
+  .trade-stack img { width: 34px; height: 34px; image-rendering: pixelated; }
+  .trade-stack b { position: absolute; right: 0; bottom: 0; font-size: 11px; text-shadow: 1px 1px #000; color: #fff; }
+  .trade-arrow { font-size: 22px; color: #eee; text-shadow: 1px 1px #555; margin: 0 2px; }
+  .trade-main { flex: 1; min-width: 0; padding: 8px 12px; }
+  .trade-header h2 { margin: 0 0 3px; text-align: center; font-size: 16px; }
+  .trade-header h2 span { font-size: 13px; font-weight: normal; }
+  .trade-xp { height: 7px; background: #456347; border: 2px solid #263b29; margin: 0 auto 22px; max-width: 300px; }
+  .trade-xp i { display: block; height: 100%; background: #54a867; }
+  .trade-form { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 2px 0 8px; }
+  .trade-inputs { display: flex; gap: 8px; }
+  .trade-inputs .slot { width: 42px; height: 42px; }
+  .trade-arrow-big { font-size: 38px; color: #888; line-height: 1; }
+  .trade-output { width: 52px; height: 52px; position: relative; background: #999; border: 2px solid; border-color: #555 #eee #eee #555; cursor: pointer; opacity: .55; }
+  .trade-output.ready { opacity: 1; background: #aaa; border-color: #fff #555 #555 #fff; }
+  .trade-output img { position: absolute; width: 42px; height: 42px; left: 3px; top: 3px; image-rendering: pixelated; }
+  .trade-output .cnt { position: absolute; right: 3px; bottom: 1px; color: #fff; text-shadow: 1px 1px #000; font-weight: bold; }
+  .trade-hint { min-height: 18px; text-align: center; color: #555; font-size: 11px; margin-bottom: 8px; }
+  .trade-inventory-title { font-size: 14px; margin: 4px 0 3px; }
+  .trade-main > .grid { grid-template-columns: repeat(9, 40px); }
+  .trade-hotbar { margin-top: 8px; }
+  @media (max-width: 650px) { .trade-ui { width: calc(100vw - 16px); max-height: 90vh; overflow: auto; } .trade-offers { width: 145px; } .trade-main > .grid { grid-template-columns: repeat(9, min(8vw, 40px)); } .trade-main .slot { width: min(8vw, 40px); height: min(8vw, 40px); } }
   .controls { font-size: 12px; columns: 2; column-gap: 24px; }
   .controls div { margin: 2px 0; }
   kbd { background: #444; color: #fff; padding: 1px 5px; border-radius: 3px; font-family: inherit; font-size: 11px; }
   #title-logo { font-size: 42px; font-weight: bold; letter-spacing: 2px; color: #fff; text-shadow: 3px 3px #3a3a3a, 0 0 18px rgba(255,255,255,0.35); margin: 0 0 4px 0; text-align: center; }
   #title-sub { text-align: center; color: #ffe27a; font-size: 12px; margin-bottom: 12px; text-shadow: 1px 1px #000; }
-  .skin-picker { display: flex; justify-content: center; gap: 10px; margin: 10px 0 12px; }
+  .skin-picker { margin: 10px 0 12px; }
+  .skin-carousel { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .skin-category-menu { display: flex; justify-content: center; gap: 6px; margin: 0 0 8px; }
+  .skin-category { min-width: 112px; padding: 5px 8px; border: 2px solid; border-color: #aaa #2b2b2b #2b2b2b #aaa; background: #555; color: #ddd; font: 11px monospace; cursor: pointer; }
+  .skin-category.active { background: var(--accent); color: #fff; border-color: #d9ffd9 #245b2d #245b2d #d9ffd9; }
+  .skin-track { display: flex; gap: 10px; width: 374px; overflow: hidden; }
+  .skin-nav { width: 30px; height: 82px; padding: 0; border: 2px solid; border-color: #aaa #2b2b2b #2b2b2b #aaa; background: #6f6f6f; color: #fff; font: bold 25px monospace; line-height: 1; cursor: pointer; text-shadow: 2px 2px #222; }
+  .skin-nav:disabled { opacity: .38; cursor: default; }
   .skin-option { width: 86px; padding: 7px; border: 3px solid #222; background: rgba(255,255,255,0.16); color: #ddd; font: inherit; cursor: pointer; }
-  .skin-option.selected { border-color: var(--accent); background: rgba(63,185,80,0.26); color: #fff; }
-  .skin-option canvas { width: 48px; height: 72px; image-rendering: pixelated; display: block; margin: 0 auto 5px; }
+  .skin-track .skin-option { flex: 0 0 86px; }
+  .skin-option.selected { border-color: var(--accent); background: rgba(63,185,80,0.26); color: #fff; box-shadow: 0 0 0 2px rgba(122,255,135,.35); }
+  .skin-option.selected span::after { content: ' ✓'; color: #b8ffbf; }
+  .skin-option canvas { width: 48px; height: 72px; image-rendering: pixelated; display: block; margin: 0 auto 5px; pointer-events: none; }
   .skin-option span { display: block; font-size: 10px; line-height: 1.2; }
+  .skin-page { color: #aaa; font-size: 10px; text-align: center; margin-top: 4px; }
+  @media (max-width: 560px) { .skin-track { width: 284px; gap: 6px; } .skin-track .skin-option { flex-basis: 68px; width: 68px; padding: 5px 3px; } .skin-option canvas { width: 40px; height: 60px; } .skin-nav { height: 70px; width: 26px; } }
   #loading .panel { text-align: center; min-width: 320px; }
   #loadbar { width: 300px; height: 14px; background: #333; margin: 8px auto; border: 2px solid #fff; }
   #loadbar i { display: block; height: 100%; background: var(--accent); width: 0; }
@@ -346,7 +425,7 @@
   <div id="start" class="overlay hidden">
     <div class="panel" style="min-width: 520px; background: rgba(40,40,40,0.9); color:#ddd;">
       <div id="title-logo">FP CRAFT</div>
-      <div id="title-sub">Mundo de teste 1000 x 1000 · montanhas · lagos · cavernas</div>
+      <div id="title-sub">Ilha personalizada 1500 x 1500 · biomas · montanhas · cavernas</div>
       <div class="skin-picker" id="skin-picker" aria-label="Escolha a skin"></div>
       <p id="skin-saved-note" class="hidden" style="margin:8px 0 12px;color:#b8e6b8;"></p>
       <div class="row">
@@ -366,7 +445,7 @@
       <h2>Configurações da skin</h2>
       <p id="skin-settings-current" style="margin:8px 0 12px;color:#b8e6b8;"></p>
       <div class="skin-picker" id="skin-settings-picker" aria-label="Trocar skin"></div>
-      <div class="row"><button class="btn" id="btn-skin-settings-close">Voltar</button></div>
+      <div class="row"><button class="btn" id="btn-skin-settings-close">Cancelar</button><button class="btn" id="btn-skin-settings-ok">OK</button></div>
     </div>
   </div>
 </div>
@@ -384,11 +463,11 @@ const CHUNK_W = 16;            // chunk width (x and z)
 const CHUNK_H = 128;           // world height
 const CHUNK_VOL = CHUNK_W * CHUNK_W * CHUNK_H;
 const SEA_LEVEL = 62;
-const TEST_WORLD_SIZE = 1000;
+const TEST_WORLD_SIZE = 1500;
 const TEST_WORLD_HALF = TEST_WORLD_SIZE / 2;
-const TEST_WORLD_SEED_PREFIX = 'minezera-ilha-biomas-v3-vila';
-const WORLD_GENERATION_VERSION = 3;
-const RESOURCE_PACK_VERSION = '26.2-models-baked1';
+const TEST_WORLD_SEED_PREFIX = 'minezera-ilha-biomas-v5-1500-vila';
+const WORLD_GENERATION_VERSION = 5;
+const RESOURCE_PACK_VERSION = '26.2-models-baked1-naturalist203';
 const VILLAGE_CENTER = Object.freeze({ x: 0, z: 40 });
 // Area around the first-spawn village where players cannot build or break blocks.
 // Keep this value separate so the protected radius can be tuned without changing
@@ -396,7 +475,7 @@ const VILLAGE_CENTER = Object.freeze({ x: 0, z: 40 });
 const VILLAGE_PROTECTION_RADIUS = 64;
 // Deterministic world landmark: every player sees the pillager mansion in the
 // same place, while the seeded terrain still makes the surrounding world vary.
-const PILLAGER_MANSION_CENTER = Object.freeze({ x: 230, z: 150 });
+const PILLAGER_MANSION_CENTER = Object.freeze({ x: 435, z: -360 });
 const PILLAGER_MANSION_RADIUS = 24;
 const TICK_RATE = 20;          // simulation ticks per second (like vanilla)
 const TICK_DT = 1 / TICK_RATE;
@@ -785,7 +864,12 @@ Blocks.define('bookshelf', { tex: { top: 'oak_planks', bottom: 'oak_planks', sid
 Blocks.define('farmland', { model: 'box', box: [0, 0, 0, 16, 15, 16], tex: { top: 'farmland', side: 'dirt', bottom: 'dirt' }, hardness: 0.6, tool: 'shovel', drops: 'dirt', transparent: true, opaque: false, cullSame: false,
   variants: (m) => m >= 1 ? { top: 'farmland_moist', side: 'dirt', bottom: 'dirt' } : null });
 Blocks.define('dirt_path', { model: 'box', box: [0, 0, 0, 16, 15, 16], tex: { top: 'dirt_path_top', side: 'dirt_path_side', bottom: 'dirt' }, hardness: 0.65, tool: 'shovel', drops: 'dirt', transparent: true, opaque: false, cullSame: false });
-Blocks.define('snow', { model: 'layer', box: [0, 0, 0, 16, 2, 16], solid: false, transparent: true, replaceable: true, hardness: 0.1, tool: 'shovel', drops: 'snowball', icon: 'cube', displayName: 'Snow Layer' });
+// A snow layer is a thin collision surface, not an empty decoration. Keeping
+// it solid lets the physics use its 2/16 height box while it remains
+// replaceable and transparent for placement/rendering purposes.
+Blocks.define('snow', { model: 'layer', box: [0, 0, 0, 16, 2, 16], solid: true, transparent: true, replaceable: true, hardness: 0.1, tool: 'shovel', drops: 'snowball', icon: 'cube', displayName: 'Snow Layer',
+  onNeighborChange: (x, y, z) => { if (!world.isSolid(x, y - 1, z)) world.setBlock(x, y, z, AIR, 0); }
+});
 Blocks.define('snow_block', { tex: 'snow', hardness: 0.2, tool: 'shovel', drops: dropCount('snowball', 4, 4) });
 Blocks.define('ice', { hardness: 0.5, tool: 'pickaxe', transparent: true, opacity: 1, drops: dropNothing });
 Blocks.define('cactus', { model: 'box', box: [1, 0, 1, 15, 16, 15], tex: { top: 'cactus_top', bottom: 'cactus_bottom', side: 'cactus_side' }, hardness: 0.4, transparent: true, opaque: false, cullSame: false, damage: 1, needsSupport: 'below' });
@@ -800,6 +884,8 @@ Blocks.define('wheat', { model: 'crop', solid: false, transparent: true, hardnes
   drops: (r, meta) => meta >= 7 ? [{ item: 'wheat', count: 1 }, { item: 'wheat_seeds', count: r.irange(0, 3) }] : [{ item: 'wheat_seeds', count: 1 }] });
 Blocks.define('pumpkin', { tex: { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side' }, hardness: 1, tool: 'axe' });
 Blocks.define('jack_o_lantern', { tex: { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'jack_o_lantern' }, hardness: 1, tool: 'axe', light: 15, facing: true });
+Blocks.define('soul_sand', { tex: 'soul_sand', hardness: 0.5, tool: 'shovel', slow: 0.4 });
+Blocks.define('wither_skeleton_skull', { model: 'box', box: [2, 0, 2, 14, 8, 14], tex: 'wither_skeleton_skull', itemTex: 'wither_skeleton_skull', hardness: 1, tool: 'axe', solid: false, transparent: true, opaque: false, cullSame: false, drops: 'wither_skeleton_skull', icon: 'cube' });
 Blocks.define('spawner', { hardness: 5, tool: 'pickaxe', tier: 1, requiresTool: true, transparent: true, cullSame: false, drops: dropNothing, tileEntity: true });
 Blocks.define('fire', { model: 'fire', tex: 'fire_0', solid: false, transparent: true, light: 15, hardness: 0, replaceable: true, drops: dropNothing, noItem: true, damage: 1 });
 Blocks.define('netherrack', { hardness: 0.4, tool: 'pickaxe', tier: 1, requiresTool: true });
@@ -1186,6 +1272,7 @@ G.stone = M('#7d7d7d', 0.2); G.andesite = M('#868a86', 0.2); G.dirt = M('#79553a
 G.granite = (p) => p.mottle('#9a6b5a', 0.2).speck(20, C('#b98a7a')); G.diorite = (p) => p.mottle('#bcbcbc', 0.25).speck(18, C('#7a7a7a'));
 G.gravel = (p) => p.mottle('#8a8480', 0.3, 0.7).speck(10, C('#5a5652'), 2);
 G.bedrock = M('#5a5a5a', 0.55, 0.6); G.snow = M('#f2f8f8', 0.04); G.netherrack = M('#6f2e2a', 0.3, 0.6);
+G.soul_sand = (p) => { p.mottle('#514238', 0.22, 0.55); for (let i = 0; i < 14; i++) p.rect(p.r.int(15), p.r.int(15), 1 + p.r.int(2), 1, C('#30251f')); return p; };
 G.end_stone = (p) => p.mottle('#dcdfa5', 0.12).speck(14, C('#b5b57a'), 2); G.obsidian = (p) => p.mottle('#15101f', 0.35, 0.7).speck(8, C('#3b2a5a'), 2);
 G.grass_block_top = M('#9c9c9c', 0.32, 0.5);
 G.grass_block_side = (p) => { G.dirt(p); for (let x = 0; x < 16; x++) { const h = 3 + p.r.int(2); p.rect(x, 0, 1, h, mulc(C('#5d9c3c'), 0.85 + p.r.next() * 0.3)); } return p; };
@@ -1240,6 +1327,7 @@ for (let s = 0; s < 8; s++) G['wheat_stage' + s] = (p) => { const h = 4 + s * 1.
 G.pumpkin_side = (p) => { p.mottle('#d68a1e', 0.1); for (const x of [2, 6, 10, 14]) p.rect(x, 0, 1, 16, C('#b06a12')); return p; };
 G.pumpkin_top = (p) => { p.mottle('#d68a1e', 0.1); p.rect(7, 7, 2, 2, C('#5a8a2a')); for (let r = 3; r < 8; r += 2) { p.rect(8 - r, 8 - r, r * 2, 1, C('#b06a12')); p.rect(8 - r, 7 + r, r * 2, 1, C('#b06a12')); } return p; };
 G.jack_o_lantern = (p) => { G.pumpkin_side(p); const y = C('#f7d24a'); p.rect(3, 4, 3, 3, y); p.rect(10, 4, 3, 3, y); p.rect(4, 10, 8, 2, y); p.rect(3, 9, 2, 2, y); p.rect(11, 9, 2, 2, y); return p; };
+G.wither_skeleton_skull = (p) => { p.fill(C('#25252b')); p.rect(3, 3, 10, 9, C('#35353d')); p.rect(5, 5, 2, 2, C('#101015')); p.rect(9, 5, 2, 2, C('#101015')); p.rect(6, 9, 4, 2, C('#101015')); p.rect(4, 12, 8, 2, C('#15151a')); return p.outline(); };
 G.spawner = (p) => { p.fill(C('#0d0d0d'), 60); for (let i = 0; i < 16; i += 4) { p.rect(i, 0, 1, 16, C('#2a2a2a')); p.rect(0, i, 16, 1, C('#2a2a2a')); } p.rect(15, 0, 1, 16, C('#2a2a2a')); p.rect(0, 15, 16, 1, C('#2a2a2a')); return p; };
 G.fire_0 = (p) => { for (let x = 0; x < 16; x++) { const h = 6 + p.r.int(10); p.rect(x, 16 - h, 1, h, C('#ff7a1a')); p.rect(x, 16 - (h >> 1), 1, h >> 1, C('#ffd23c')); } return p; };
 G.redstone_dust_dot = (p) => p.ellipse(8, 8, 3.2, 3.2, [230, 230, 230]); G.redstone_dust_line0 = (p) => p.rect(6, 0, 4, 16, [230, 230, 230]);
@@ -1502,6 +1590,20 @@ const ENTITY_TEXTURE_PATHS = {
   skeleton: ['assets/minecraft/textures/entity/skeleton/skeleton.png'],
   creeper: ['assets/minecraft/textures/entity/creeper/creeper.png'],
   villager: ['assets/minecraft/textures/entity/villager/villager.png'],
+  villager_armorer: ['assets/minecraft/textures/entity/villager/profession/armorer.png'],
+  villager_butcher: ['assets/minecraft/textures/entity/villager/profession/butcher.png'],
+  villager_cartographer: ['assets/minecraft/textures/entity/villager/profession/cartographer.png'],
+  villager_cleric: ['assets/minecraft/textures/entity/villager/profession/cleric.png'],
+  villager_farmer: ['assets/minecraft/textures/entity/villager/profession/farmer.png'],
+  villager_fisherman: ['assets/minecraft/textures/entity/villager/profession/fisherman.png'],
+  villager_fletcher: ['assets/minecraft/textures/entity/villager/profession/fletcher.png'],
+  villager_leatherworker: ['assets/minecraft/textures/entity/villager/profession/leatherworker.png'],
+  villager_librarian: ['assets/minecraft/textures/entity/villager/profession/librarian.png'],
+  villager_mason: ['assets/minecraft/textures/entity/villager/profession/mason.png'],
+  villager_nitwit: ['assets/minecraft/textures/entity/villager/profession/nitwit.png'],
+  villager_shepherd: ['assets/minecraft/textures/entity/villager/profession/shepherd.png'],
+  villager_toolsmith: ['assets/minecraft/textures/entity/villager/profession/toolsmith.png'],
+  villager_weaponsmith: ['assets/minecraft/textures/entity/villager/profession/weaponsmith.png'],
   pillager: ['assets/minecraft/textures/entity/illager/pillager.png'],
   zombie_villager: ['assets/minecraft/textures/entity/zombie_villager/zombie_villager.png'],
   wither_skeleton: ['assets/minecraft/textures/entity/skeleton/wither_skeleton.png'],
@@ -1534,7 +1636,8 @@ const ENTITY_TEXTURE_PATHS = {
   vex: ['assets/minecraft/textures/entity/illager/vex.png'],
   illusioner: ['assets/minecraft/textures/entity/illager/illusioner.png'],
   evoker: ['assets/minecraft/textures/entity/illager/evoker.png'],
-  vindicator: ['assets/minecraft/textures/entity/illager/vindicator.png']
+  vindicator: ['assets/minecraft/textures/entity/illager/vindicator.png'],
+  wither: ['assets/minecraft/textures/entity/wither/wither.png']
 };
 
 const EntityModelCatalog = {
@@ -1698,7 +1801,13 @@ class World {
   }
   // Combined light 0..15 as seen by gameplay (mob spawning etc.) given the sky brightness 0..1
   getLightLevel(x, y, z, skyFactor) { return Math.max(this.getBlockLight(x, y, z), this.getSky(x, y, z) * skyFactor); }
-  getHeight(x, z) { const c = this.chunkAt(x, z); return (c && c.state) ? c.height[(x & 15) * CHUNK_W + (z & 15)] : SEA_LEVEL; }
+  getHeight(x, z) {
+    const c = this.chunkAt(x, z); if (!c || !c.state) return SEA_LEVEL;
+    const h = c.height[(x & 15) * CHUNK_W + (z & 15)], topY = h - 1;
+    // Heightmaps store integer top-block positions. A snow layer only fills
+    // 2/16 of its block, so expose the real surface to spawning and physics.
+    return c.blocks[bidx(x & 15, topY, z & 15)] === B.snow ? topY + 2 / 16 : h;
+  }
   getBiome(x, z) { const c = this.chunkAt(x, z); return (c && c.state) ? c.biomes[(x & 15) * CHUNK_W + (z & 15)] : 0; }
   isSolid(x, y, z) { return Blocks.byId[this.getBlock(x, y, z)].solid; }
   isOpaque(x, y, z) { return Blocks.byId[this.getBlock(x, y, z)].opaque; }
@@ -1735,9 +1844,11 @@ class World {
   setMeta(x, y, z, meta) {
     const c = this.chunkAt(x, z); if (!c || !c.state) return;
     const i = bidx(x & 15, y, z & 15);
-    if (c.meta[i] === meta) return;
+    const oldMeta = c.meta[i];
+    if (oldMeta === meta) return;
     c.meta[i] = meta; c.modified = true;
     ChunkManager.markDirty(x, y, z);
+    Events.emit('blockChanged', x, y, z, c.blocks[i], c.blocks[i], oldMeta, meta);
   }
   // Tell the 6 neighbours that (x,y,z) changed so they can react (support checks, fluids, redstone).
   notifyNeighbors(x, y, z) {
@@ -1806,8 +1917,21 @@ class World {
     World.unrle(d.b, c.blocks); World.unrle(d.m, c.meta);
     if (d.bio) c.biomes.set(d.bio);
     for (const [i, t] of d.t || []) c.tiles.set(i, t);
+    if (typeof Terrain !== 'undefined' && Terrain.removeUnsupportedSnow) Terrain.removeUnsupportedSnow(c);
     c.recomputeHeights();
     c.state = CH_DECORATED; c.modified = true;
+    return c;
+  }
+  applySerializedChunk(d) {
+    const k = chunkKey(d.cx, d.cz);
+    const loaded = this.chunks.has(k);
+    const old = this.chunks.get(k) || this.stored.get(k);
+    if (old && loaded && typeof ChunkManager !== 'undefined') ChunkManager.disposeMesh(old);
+    const c = this.deserializeChunk(d);
+    if (loaded) this.chunks.set(k, c);
+    else this.stored.set(k, c);
+    this.lastChunk = null;
+    if (typeof ChunkManager !== 'undefined') ChunkManager.needsScan = true;
     return c;
   }
 }
@@ -1850,39 +1974,52 @@ const Terrain = {
   },
   // Column sample: height of the top solid block (y) and biome id.
   sample(x, z) {
-    const islandRadius = 360, shoreWidth = 72, distance = Math.hypot(x, z);
-    const cont = this.nCont.fbm2(x * 0.0012, z * 0.0012, 4);
-    const ero = this.nEro.fbm2((x + 1000) * 0.003, (z + 1000) * 0.003, 3);
-    const hills = this.nHill.fbm2(x * 0.012, z * 0.012, 4);
+    // The playable world is a 1500x1500 square. The island is deliberately
+    // smaller than the square so the outer ring and the corners are ocean.
+    // Region masks keep the large biomes recognizable while the noise adds
+    // natural borders and local variation.
+    const islandRadius = 680, shoreWidth = 72, distance = Math.hypot(x, z);
+    const cont = this.nCont.fbm2(x * 0.00045, z * 0.00045, 4);
+    const ero = this.nEro.fbm2((x + 1000) * 0.001, (z + 1000) * 0.001, 3);
+    const hills = this.nHill.fbm2(x * 0.004, z * 0.004, 4);
     const islandLand = 1 - smoothstep(islandRadius - shoreWidth, islandRadius, distance);
-    const centralHighlands = 1 - clamp(Math.hypot(x - 20, z + 75) / 210, 0, 1);
+    const region = (cx, cz, rx, rz) => Math.max(0, 1 - Math.hypot((x - cx) / rx, (z - cz) / rz));
+    const snowRegion = region(-276, -276, 315, 300);
+    const jungleRegion = region(-354, 315, 348, 288);
+    const swampRegion = region(-465, 102, 234, 192);
+    const desertRegion = region(375, 294, 294, 312);
+    const rockRegion = region(396, -303, 300, 282);
+    const forestRegion = region(36, -186, 495, 276);
+    const villageRegion = region(0, 40, 192, 192);
     const landness = smoothstep(-0.25, 0.15, cont);
-    const mountain = clamp(Math.max(smoothstep(0.15, 0.65, ero) * smoothstep(0.05, 0.3, cont), centralHighlands * 0.72), 0, 1) * islandLand;
-    const ridge = mountain > 0 ? this.nRidge.ridge2(x * 0.006, z * 0.006, 4) : 0;
-    const base = lerp(SEA_LEVEL + 1 + cont * 5, 70 + cont * 8, landness);
-    let h = base + hills * (5 + 13 * mountain) + ridge * 58 * mountain;
+    const naturalMountain = smoothstep(0.15, 0.65, ero) * smoothstep(0.05, 0.3, cont);
+    const mountain = clamp(Math.max(naturalMountain * 0.7, snowRegion * 0.98, rockRegion * 0.9, region(54, -276, 375, 246) * 0.62), 0, 1) * islandLand;
+    const ridge = mountain > 0 ? this.nRidge.ridge2(x * 0.002, z * 0.002, 4) : 0;
+    const base = lerp(SEA_LEVEL + 1 + cont * 4, 69 + cont * 7, landness);
+    let h = base + hills * (5 + 18 * mountain) + ridge * 48 * mountain + snowRegion * 14 + rockRegion * 18;
     const coast = smoothstep(islandRadius - shoreWidth, islandRadius, distance);
-    const jungleZone = x < -90 && z < 115 && distance < islandRadius - shoreWidth;
-    const swampZone = x < -115 && z > 55 && distance < islandRadius - shoreWidth;
-    const desertZone = x > 105 && z > -145 && distance < islandRadius - shoreWidth;
-    const snowZone = z < -125 && distance < islandRadius - shoreWidth;
     if (distance >= islandRadius) h = SEA_LEVEL - 10 - Math.min(22, Math.floor((distance - islandRadius) * 0.08));
     else if (coast > 0) h = lerp(Math.max(SEA_LEVEL + 1, h), SEA_LEVEL - 1 - coast * 10, coast);
     if (distance < islandRadius - shoreWidth && h < SEA_LEVEL + 1) h = SEA_LEVEL + 1;
-    if (swampZone) h = floor(clamp(SEA_LEVEL - 1 + hills * 4, SEA_LEVEL - 2, SEA_LEVEL + 2));
+    if (swampRegion > 0.2) h = floor(clamp(SEA_LEVEL - 1 + hills * 4 + (swampRegion - 0.2) * 3, SEA_LEVEL - 2, SEA_LEVEL + 3));
     h = floor(clamp(h, 4, CHUNK_H - 6));
-    let temp = (this.nTemp.fbm2((x + 5000) * 0.0017, z * 0.0017, 3) + 1) * 0.5 - Math.max(0, h - 70) * 0.006;
-    const hum = (this.nHum.fbm2(x * 0.0021, (z + 5000) * 0.0021, 3) + 1) * 0.5;
+    let temp = (this.nTemp.fbm2((x + 5000) * 0.0007, z * 0.0007, 3) + 1) * 0.5 - Math.max(0, h - 70) * 0.006;
+    temp = clamp(temp - snowRegion * 0.55 + desertRegion * 0.38, 0, 1);
+    let hum = (this.nHum.fbm2(x * 0.00085, (z + 5000) * 0.00085, 3) + 1) * 0.5;
+    hum = clamp(hum + jungleRegion * 0.35 + swampRegion * 0.4 - desertRegion * 0.45, 0, 1);
     let biome;
     if (h < SEA_LEVEL - 12) biome = BIO_DEEP_OCEAN;
     else if (h < SEA_LEVEL - 1) biome = BIO_OCEAN;
+    else if (snowRegion > 0.24 && h > 72) biome = BIO_SNOWY;
     else if (mountain > 0.45 && h > 74) biome = BIO_MOUNTAINS;
+    else if (swampRegion > 0.24) biome = BIO_SWAMP;
+    else if (jungleRegion > 0.24) biome = BIO_JUNGLE;
+    else if (desertRegion > 0.24) biome = BIO_DESERT;
+    else if (villageRegion > 0.28) biome = BIO_PLAINS;
     else if (h <= SEA_LEVEL + 2 && cont < 0.3) biome = BIO_BEACH;
-    else if (swampZone) biome = BIO_SWAMP;
-    else if (jungleZone) biome = BIO_JUNGLE;
-    else if (snowZone || temp < 0.3) biome = hum > 0.5 ? BIO_TAIGA : BIO_SNOWY;
-    else if (desertZone || (temp > 0.68 && hum < 0.42)) biome = BIO_DESERT;
-    else if (hum > 0.6) biome = temp < 0.5 ? BIO_BIRCH : BIO_FOREST;
+    else if (snowRegion > 0.14 || temp < 0.3) biome = hum > 0.5 ? BIO_TAIGA : BIO_SNOWY;
+    else if (desertRegion > 0.12 || (temp > 0.68 && hum < 0.42)) biome = BIO_DESERT;
+    else if (forestRegion > 0.18 || hum > 0.6) biome = temp < 0.5 ? BIO_BIRCH : BIO_FOREST;
     else biome = BIO_PLAINS;
     return { h, biome, temp, hum, mountain, distance, islandLand };
   },
@@ -1928,11 +2065,27 @@ const Terrain = {
       if ((s.temp < 0.25 || bio === BIO_SNOWY || bio === BIO_TAIGA) && h < SEA_LEVEL) bl[base | SEA_LEVEL] = B.ice; // frozen cold seas
     }
     this.carveCaves(c, cols);
+    this.removeUnsupportedSnow(c);
     this.placeVeins(c);
     c.recomputeHeights();
     c.state = CH_GENERATED;
     world.applyPending(c);
     this.decorateChunk(c, cols);
+  },
+
+  // Caves are carved after the surface is placed. Remove any snow layer whose
+  // supporting block was opened by a cave/ravine so snow never forms bridges
+  // over empty space. Runtime block changes use the neighbor hook above.
+  removeUnsupportedSnow(c) {
+    const bl = c.blocks, meta = c.meta;
+    let changed = false;
+    for (let x = 0; x < CHUNK_W; x++) for (let z = 0; z < CHUNK_W; z++) for (let y = 1; y < CHUNK_H; y++) {
+      const i = bidx(x, y, z);
+      if (bl[i] !== B.snow) continue;
+      const below = bl[bidx(x, y - 1, z)], belowDef = Blocks.byId[below];
+      if (!belowDef || !belowDef.solid || below === B.snow) { bl[i] = AIR; meta[i] = 0; changed = true; }
+    }
+    if (changed) c.recomputeHeights();
   },
 
   // ---- Caves: two 3D noise fields (tunnels where both are near zero) + 2D ravines ----
@@ -3694,6 +3847,7 @@ const Interaction = {
     if (def.model === 'door') world.setBlock(x, y + 1, z, def.id, meta | 1);
     if (def.tileEntity && def.interactive === 'chest') world.setTile(x, y, z, { type: 'chest', slots: new Array(27).fill(null) });
     if (def.onPlace) def.onPlace(x, y, z, meta);
+    if (def.id === B.iron_block || def.id === B.pumpkin || def.id === B.jack_o_lantern || def.id === B.soul_sand || def.id === B.wither_skeleton_skull) Structures.checkAround(x, y, z);
     if (!Player.isCreative()) Inventory.consumeHeld();
     Particles.blockBreak(x, y, z, def, 0);
     player.exhaustion += 0.005;
@@ -3894,12 +4048,13 @@ Events.on('tileRemoved', (x, y, z, tile) => {
 
 /* ---- Screens ---------------------------------------------------------------- */
 const Screens = {
-  current: null, data: null, cursor: null, containers: {}, touchDrag: null, craft2: new Array(4).fill(null), craft9: new Array(9).fill(null), result: [null],
+  current: null, data: null, cursor: null, containers: {}, touchDrag: null, craft2: new Array(4).fill(null), craft9: new Array(9).fill(null), result: [null], tradeInputs: [null, null], tradeSelection: 0,
   suppressUnlock: false, tab: 'blocks',
   isOpen() { return !!this.current; },
   open(type, data) {
     if (this.current) this.close();
     this.current = type; this.data = data || null;
+    if (type === 'trading') { this.tradeInputs = [null, null]; this.tradeSelection = 0; }
     this.suppressUnlock = Input.locked; Input.unlock();
     $('screen').classList.remove('hidden');
     this.render();
@@ -3910,8 +4065,10 @@ const Screens = {
     const give = (s) => { if (!s) return; const left = Inventory.add(player.inventory, s); if (left) Entities.spawnItem(player.x, player.y + 1, player.z, { name: s.name, count: left, dur: s.dur, ench: s.ench, trim: s.trim }); };
     for (let i = 0; i < 4; i++) { give(this.craft2[i]); this.craft2[i] = null; }
     for (let i = 0; i < 9; i++) { give(this.craft9[i]); this.craft9[i] = null; }
+    for (let i = 0; i < this.tradeInputs.length; i++) { give(this.tradeInputs[i]); this.tradeInputs[i] = null; }
     give(this.cursor); this.cursor = null; this.result[0] = null;
     this.current = null; this.data = null;
+    $('screen-panel').classList.remove('creative-screen-panel');
     $('screen').classList.add('hidden'); $('cursor-stack').style.display = 'none'; $('tooltip').style.display = 'none';
     HUD.refreshHotbar();
     if (Game.running && !Game.paused && !player.dead) Input.lock();
@@ -3919,9 +4076,38 @@ const Screens = {
   slotHTML(c, i, cls = '') { return `<div class="slot ${cls}" data-c="${c}" data-i="${i}"><img alt=""><span class="cnt"></span><div class="dur hidden"><i></i></div></div>`; },
   gridHTML(c, n, cols, start = 0, cls = '') { let h = `<div class="grid" style="grid-template-columns: repeat(${cols}, 40px)">`; for (let i = 0; i < n; i++) h += this.slotHTML(c, start + i, cls); return h + '</div>'; },
   playerInvHTML() { return `<div class="section"><div class="title">Inventory</div>${this.gridHTML('inv', 27, 9, 9)}</div><div class="section">${this.gridHTML('inv', 9, 9, 0)}</div>`; },
+  creativeCategories() {
+    return [
+      { id: 'blocks', label: 'Blocos de construção', icon: 'stone' },
+      { id: 'decor', label: 'Decoração', icon: 'flower_pot' },
+      { id: 'redstone', label: 'Redstone', icon: 'redstone' },
+      { id: 'tools', label: 'Ferramentas', icon: 'diamond_pickaxe' },
+      { id: 'combat', label: 'Combate', icon: 'diamond_sword' },
+      { id: 'food', label: 'Comida', icon: 'apple' },
+      { id: 'materials', label: 'Materiais', icon: 'iron_ingot' },
+      { id: 'misc', label: 'Diversos', icon: 'compass' },
+      { id: 'custom', label: 'Itens 26.2', icon: 'chest' }
+    ];
+  },
+  creativeCategoryItems(tab) {
+    const all = Items.list.filter(it => it && it.name);
+    const nameOf = (it) => `${it.name || ''} ${it.displayName || ''}`.toLowerCase();
+    const decor = /(flower|poppy|dandelion|grass|fern|sapling|torch|lantern|door|trapdoor|fence|slab|stairs|glass|sign|ladder|chest|bed|banner|painting|rail|pot|leaves|vine|coral|candle)/;
+    const redstone = /(redstone|lever|button|repeater|comparator|piston|observer|dispenser|dropper|hopper|tnt|tripwire|rail|target)/;
+    const combat = /(sword|bow|arrow|armor|helmet|chestplate|leggings|boots|shield|trident|crossbow)/;
+    if (tab === 'decor') return all.filter(it => decor.test(nameOf(it)));
+    if (tab === 'redstone') return all.filter(it => redstone.test(nameOf(it)));
+    if (tab === 'combat') return all.filter(it => it.type === 'weapon' || combat.test(nameOf(it)));
+    if (tab === 'blocks') return all.filter(it => it.creativeTab === 'blocks' && !decor.test(nameOf(it)) && !redstone.test(nameOf(it)));
+    return all.filter(it => it.creativeTab === tab);
+  },
+  creativeTabButton(category) {
+    return `<button class="creative-tab ${category.id === this.tab ? 'active' : ''}" data-tab="${category.id}" title="${category.label}"><img data-creative-icon="${category.icon}" alt="${category.label}"></button>`;
+  },
   render() {
     const P = $('screen-panel'); const t = this.current;
-    this.containers = { inv: player.inventory, craft2: this.craft2, craft9: this.craft9, result: this.result };
+    P.classList.toggle('creative-screen-panel', t === 'creative');
+    this.containers = { inv: player.inventory, craft2: this.craft2, craft9: this.craft9, result: this.result, tradeInput: this.tradeInputs };
     let html = '';
     if (t === 'inventory') {
       if (Player.isCreative()) { this.current = 'creative'; this.render(); return; }
@@ -3940,15 +4126,26 @@ const Screens = {
       html = `<h2>Chest</h2>${this.gridHTML('chest', 27, 9)}${this.playerInvHTML()}`;
     } else if (t === 'creative') {
       this.current = 'creative';
-      const tabs = ['blocks', 'materials', 'tools', 'food', 'misc', 'custom'].map(n => `<button class="btn small ${n === this.tab ? 'sel' : ''}" data-tab="${n}">${n === 'custom' ? 'Itens 26.2' : prettify(n)}</button>`).join('');
-      const list = Items.list.filter(it => it.creativeTab === this.tab);
+      const categories = this.creativeCategories();
+      if (!categories.some(c => c.id === this.tab)) this.tab = 'blocks';
+      const list = this.creativeCategoryItems(this.tab);
+      const currentCategory = categories.find(c => c.id === this.tab) || categories[0];
       this.containers.catalog = list.map(it => ({ name: it.name, count: it.stack }));
-      html = `<h2>Creative Inventory</h2><div class="row">${tabs}<span style="font-size:11px">Click: take stack · Click catalogue with item: delete</span></div><div class="catalog">${list.map((it, i) => this.slotHTML('catalog', i)).join('')}</div>${this.playerInvHTML()}`;
+      const topTabs = categories.slice(0, 8).map(c => this.creativeTabButton(c)).join('');
+      const bottomTabs = categories.slice(3).map(c => this.creativeTabButton(c)).join('');
+      html = `<div class="creative-ui">
+        <div class="creative-top-tabs">${topTabs}</div>
+        <div class="creative-title">${currentCategory.label}</div>
+        <div class="creative-catalog"><div class="creative-grid">${list.map((it, i) => this.slotHTML('catalog', i)).join('')}</div><div class="creative-scrollbar"><i></i></div></div>
+        <div class="creative-hotbar"><div class="grid creative-hotbar-slots">${Array.from({ length: 9 }, (_, i) => this.slotHTML('inv', i)).join('')}</div></div>
+        <div class="creative-bottom-tabs">${bottomTabs}</div>
+      </div>`;
     } else if (window.Expansion26UI) {
       html = window.Expansion26UI.render(t, this) || '<h2>Interface indisponivel</h2>';
     }
     P.innerHTML = html;
     P.onclick = null;
+    P.querySelectorAll('[data-creative-icon]').forEach(img => { img.src = Atlas.getIcon(img.dataset.creativeIcon); });
     P.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { this.tab = b.dataset.tab; this.render(); }));
     P.querySelectorAll('.slot').forEach(el => {
       el.addEventListener('mousedown', (e) => { e.preventDefault(); this.onSlot(el.dataset.c, +el.dataset.i, e.button, e.shiftKey); });
@@ -4394,13 +4591,14 @@ const MOB_TYPES = {
   wandering_trader:{ w: 0.3, h: 1.9, health: 20, speed: 1.25, passive: true, damage: 0, drops: [], name: 'Wandering Trader' },
   goat:            { w: 0.45, h: 1.3, health: 19, speed: 2.0, passive: true, damage: 2, drops: [], name: 'Goat' },
   fox:             { w: 0.35, h: 0.8, health: 10, speed: 2.4, passive: true, damage: 2, drops: [], name: 'Fox' },
-  wither_skeleton: { w: 0.3, h: 2.4, health: 20, speed: 2.8, hostile: true, damage: 8, drops: [['bone', 0, 2]], name: 'Wither Skeleton' },
+  wither_skeleton: { w: 0.3, h: 2.4, health: 20, speed: 2.8, hostile: true, damage: 8, drops: [['bone', 0, 2], ['wither_skeleton_skull', 0, 1]], name: 'Wither Skeleton' },
   piglin:          { w: 0.3, h: 1.95, health: 16, speed: 2.4, hostile: true, damage: 5, drops: [['gold_nugget', 0, 2]], name: 'Piglin' },
   ravager:         { w: 0.9, h: 2.2, health: 100, speed: 1.5, hostile: true, damage: 12, drops: [], name: 'Ravager' },
   vex:             { w: 0.3, h: 0.8, health: 14, speed: 3.5, hostile: true, damage: 5, drops: [], name: 'Vex' },
   illusioner:      { w: 0.3, h: 1.95, health: 32, speed: 2.5, hostile: true, ranged: true, damage: 4, drops: [], name: 'Illusioner' },
   evoker:          { w: 0.3, h: 1.95, health: 24, speed: 2.0, hostile: true, ranged: true, damage: 6, drops: [], name: 'Evoker' },
-  vindicator:      { w: 0.3, h: 1.95, health: 24, speed: 2.5, hostile: true, damage: 7, drops: [], name: 'Vindicator' }
+  vindicator:      { w: 0.3, h: 1.95, health: 24, speed: 2.5, hostile: true, damage: 7, drops: [], name: 'Vindicator' },
+  wither:          { w: 0.9, h: 3.5, health: 300, speed: 1.2, hostile: true, ranged: true, damage: 8, drops: [], name: 'Wither' }
 };
 const SHEEP_COLOR_WEIGHTS = [['white', 81], ['black', 5], ['gray', 5], ['light_gray', 5], ['brown', 3], ['pink', 1]];
 
@@ -4451,6 +4649,7 @@ const Mobs = {
     m.serverControlled = true;
     m.serverId = String(state.id);
     const shearedChanged = m.type === 'sheep' && m.sheared !== !!state.sheared;
+    const professionChanged = m.type === 'villager' && m.profession !== (state.profession || m.profession);
     m.serverTarget = Object.assign({}, m.serverTarget || state, state);
     m.health = Number.isFinite(Number(state.health)) ? Number(state.health) : m.health;
     m.maxHealth = Number.isFinite(Number(state.maxHealth)) ? Number(state.maxHealth) : m.maxHealth;
@@ -4458,7 +4657,12 @@ const Mobs = {
     m.fuse = Number.isFinite(Number(state.fuse)) ? Number(state.fuse) : -1;
     m.sheared = !!state.sheared;
     m.color = state.color || m.color;
-    if (shearedChanged) this.rebuild(m);
+    if (m.type === 'villager') {
+      m.profession = state.profession || m.profession || 'unemployed';
+      m.villagerLevel = clamp(Number(state.villagerLevel) || m.villagerLevel || 1, 1, 5);
+      m.tradeUses = Math.max(0, Number(state.tradeUses) || 0);
+    }
+    if (shearedChanged || professionChanged) this.rebuild(m);
     return m;
   },
   hurtServer(id, health) {
@@ -4540,6 +4744,7 @@ const Mobs = {
     else if (type === 'chicken') { eyes('#000000', '#000000'); p.rect(3, 4, 2, 2, C('#f0c020')); p.rect(3, 6, 2, 1, C('#d02020')); }
     else if (type === 'villager') { eyes('#362b20', '#362b20'); p.rect(3, 4, 2, 3, C('#6b4028')); p.rect(2, 7, 4, 1, C('#6b4028')); }
     else if (type === 'pillager') { eyes('#241c18', '#241c18'); p.rect(3, 4, 2, 3, C('#4b3024')); p.rect(2, 7, 4, 1, C('#241c18')); }
+    else if (type === 'wither') { eyes('#55d7d7', '#55d7d7'); p.rect(2, 6, 4, 1, C('#09090d')); }
     const cv = document.createElement('canvas'); cv.width = cv.height = 8;
     cv.getContext('2d').drawImage(p.toCanvas(), 0, 0);
     const tex = new THREE.CanvasTexture(cv); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
@@ -4829,6 +5034,74 @@ const Mobs = {
       }
       return true;
     }
+    if (t === 'wither') {
+      const dark = '#292932', face = this.faceTexture('wither', '#202027');
+      const texture = this.entityTexture('wither') ? 'wither' : null;
+      const uv = (x, y, w, h, d) => texture ? { texture, uv: this.cubeUV(x, y, w, h, d, 64, 64) } : {};
+      parts.body = this.box(g, 16, 8, 8, 0, 24, 0, dark, uv(0, 16, 16, 8, 8));
+      parts.head = this.box(g, 8, 8, 8, 0, 30, -1, dark, { ...uv(0, 0, 8, 8, 8), face });
+      for (const sx of [-1, 1]) {
+        const head = this.box(g, 8, 8, 8, sx * 10, 30, 0, dark, { ...uv(0, 0, 8, 8, 8), face });
+        parts.arms.push(head);
+      }
+      for (const sx of [-1, 1]) this.box(g, 4, 12, 4, sx * 5, 12, 0, '#1e1e25', { pivotTop: true });
+      return true;
+    }
+    if (typeof NATURALIST_MOBS !== 'undefined' && NATURALIST_MOBS[t]) {
+      // Naturalist keeps its entity geometry in compiled Java model classes,
+      // not as portable JSON. Use the same original texture with a stable
+      // renderer-neutral shape until a compatible model extractor is added.
+      const spec = NATURALIST_MOBS[t];
+      const image = this.entityTexture(t);
+      const texW = image?.image?.width || 64, texH = image?.image?.height || 64;
+      const pixels = (value, fallback) => Math.max(2, Math.round((Number(value) || fallback) * 16));
+      const width = pixels(spec.w, 0.4) * (spec.family === 'aquatic' ? 1.7 : 1.25);
+      const height = pixels(spec.h, 0.35);
+      const depth = Math.max(4, Math.round(width * (spec.family === 'aquatic' ? 1.15 : 0.95)));
+      const uv = (w, h, d) => this.cubeUV(0, 0, Math.min(Math.round(w), texW), Math.min(Math.round(h), texH), Math.min(Math.round(d), texW), texW, texH);
+      const box = (w, h, d, x, y, z, opts = {}) => this.box(g, w, h, d, x, y, z, '#ffffff', { texture: t, uv: uv(w, h, d), ...opts });
+      if (spec.family === 'aquatic') {
+        parts.body = box(width, Math.max(3, height * 0.58), depth, 0, Math.max(3, height * 0.55), 0);
+        parts.head = parts.body;
+        for (const sx of [-1, 1]) {
+          const fin = box(Math.max(2, width * 0.16), Math.max(2, height * 0.55), Math.max(3, depth * 0.45), sx * width * 0.58, height * 0.55, 0);
+          fin.rotation.z = sx * 0.24; parts.arms.push(fin);
+        }
+      } else if (spec.family === 'snake') {
+        parts.body = box(Math.max(3, width * 0.65), Math.max(3, height * 0.48), depth * 1.7, 0, height * 0.5, 1);
+        parts.head = box(width, Math.max(3, height * 0.65), Math.max(3, depth * 0.7), 0, height * 0.62, -depth * 0.8);
+        const tail = box(Math.max(2, width * 0.45), Math.max(2, height * 0.35), depth * 1.1, 0, height * 0.42, depth * 1.35);
+        tail.rotation.x = 0.12; parts.arms.push(tail);
+      } else if (spec.family === 'flying') {
+        parts.body = box(width, Math.max(3, height * 0.55), depth, 0, height * 0.55, 0);
+        parts.head = box(Math.max(3, width * 0.8), Math.max(3, height * 0.7), Math.max(3, depth * 0.7), 0, height * 0.8, -depth * 0.6);
+        for (const sx of [-1, 1]) {
+          const wing = box(Math.max(2, width * 0.16), Math.max(3, height * 0.9), Math.max(4, depth * 1.5), sx * width * 0.68, height * 0.72, 0);
+          wing.rotation.z = sx * 0.18; parts.arms.push(wing);
+        }
+      } else if (spec.family === 'insect') {
+        parts.body = box(width, Math.max(3, height * 0.55), depth, 0, height * 0.55, 0);
+        parts.head = box(Math.max(3, width * 0.82), Math.max(3, height * 0.62), Math.max(3, depth * 0.72), 0, height * 0.8, -depth * 0.58);
+        for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+          const leg = box(Math.max(1.5, width * 0.16), Math.max(2, height * 0.65), Math.max(1.5, width * 0.16), sx * width * 0.55, height * 0.35, sz * depth * 0.32, { pivotTop: true });
+          leg.rotation.z = sx * 0.35; parts.legs.push(leg);
+        }
+      } else if (spec.family === 'bird') {
+        const legH = Math.max(3, height * 0.38), bodyH = Math.max(4, height * 0.42);
+        parts.body = box(width, bodyH, depth, 0, legH + bodyH * 0.5, 0);
+        parts.head = box(Math.max(4, width * 0.72), Math.max(4, height * 0.42), Math.max(4, depth * 0.7), 0, legH + bodyH + height * 0.13, -depth * 0.55);
+        for (const sx of [-1, 1]) {
+          parts.arms.push(box(Math.max(2, width * 0.14), Math.max(3, height * 0.48), depth * 0.8, sx * width * 0.58, legH + bodyH * 0.72, 0));
+          parts.legs.push(box(Math.max(1.5, width * 0.15), legH, Math.max(1.5, width * 0.15), sx * width * 0.25, legH, 0, { pivotTop: true }));
+        }
+      } else {
+        const legH = Math.max(4, height * 0.42), bodyH = Math.max(5, height * 0.42);
+        parts.body = box(width, bodyH, depth, 0, legH + bodyH * 0.5, 0);
+        parts.head = box(Math.max(4, width * 0.72), Math.max(4, height * 0.42), Math.max(4, depth * 0.68), 0, legH + bodyH + height * 0.14, -depth * 0.62);
+        for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) parts.legs.push(box(Math.max(2, width * 0.18), legH, Math.max(2, width * 0.18), sx * width * 0.32, legH, sz * depth * 0.3, { pivotTop: true }));
+      }
+      return true;
+    }
     return false;
   },
   buildModel(m) {
@@ -4882,7 +5155,7 @@ const Mobs = {
       g.scale.set(0.9, 0.9, 0.9);
     } else if (t === 'villager' || t === 'wandering_trader') {
       const skin = '#d3a06c';
-      const villagerTexture = t === 'wandering_trader' ? 'wandering_trader' : 'villager';
+      const villagerTexture = t === 'wandering_trader' ? 'wandering_trader' : (m.profession ? 'villager_' + m.profession : 'villager');
       const tex = { texture: villagerTexture };
       const villagerFallback = this.entityTexture(villagerTexture) ? '#ffffff' : '#795437';
       // Layout oficial do VillagerModel: cabeça 8x10, corpo em (16,20),
@@ -4961,9 +5234,11 @@ const Mobs = {
       rabbit: 'Coelho', bat: 'Morcego', iron_golem: 'Golem de ferro',
       wandering_trader: 'Comerciante errante', goat: 'Cabra', fox: 'Raposa',
       wither_skeleton: 'Esqueleto Wither', piglin: 'Piglin', ravager: 'Ravager',
-      vex: 'Vex', illusioner: 'Illusioner', evoker: 'Evoker', vindicator: 'Vindicator'
+      vex: 'Vex', illusioner: 'Illusioner', evoker: 'Evoker', vindicator: 'Vindicator', wither: 'Wither'
     };
-    const label = labels[m.type] || m.def.name || m.type;
+    const professionLabels = { farmer: 'Agricultor', fisherman: 'Pescador', shepherd: 'Pastor', fletcher: 'Flecheiro', librarian: 'Bibliotecário', cartographer: 'Cartógrafo', cleric: 'Clérigo', armorer: 'Armoreiro', weaponsmith: 'Ferreiro de armas', toolsmith: 'Ferreiro de ferramentas', butcher: 'Açougueiro', leatherworker: 'Curtidor', mason: 'Pedreiro', unemployed: 'Desempregado', nitwit: 'Simplório' };
+    const villagerLabel = m.type === 'villager' ? `${professionLabels[m.profession] || 'Aldeão'} — ${['', 'Novato', 'Aprendiz', 'Oficial', 'Especialista', 'Mestre'][clamp(Number(m.villagerLevel) || 1, 1, 5)]}` : null;
+    const label = villagerLabel || labels[m.type] || m.def.name || m.type;
     ctx.clearRect(0, 0, 128, 32);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -4988,7 +5263,10 @@ const Mobs = {
   spawnMob(type, x, y, z, serverState = null) {
     const def = MOB_TYPES[type]; if (!def) return null;
     const m = { type, def, x, y, z, vx: 0, vy: 0, vz: 0, w: def.w, h: def.h, yaw: rng.next() * Math.PI * 2, health: def.health, maxHealth: def.health, onGround: false, stepHeight: 1,
-      dead: false, deathTimer: 0, hurtTimer: 0, state: 'idle', stateTimer: rng.range(1, 3), moveX: 0, moveZ: 0, attackCooldown: 0, fire: 0, walkPhase: 0, hpTimer: 0, fuse: -1, age: 0, mesh: null, parts: null, sheared: false, regrow: 0, color: 'white', lightTimer: 0, fleeFrom: null,
+      dead: false, deathTimer: 0, hurtTimer: 0, state: 'idle', stateTimer: rng.range(1, 3), moveX: 0, moveZ: 0, attackCooldown: 0, fire: 0, walkPhase: 0, walkBlend: 0, walkSpeed: 0, hpTimer: 0, fuse: -1, age: 0, mesh: null, parts: null, sheared: false, regrow: 0, color: 'white', lightTimer: 0, fleeFrom: null,
+      profession: serverState && serverState.profession ? String(serverState.profession) : null,
+      villagerLevel: serverState && Number(serverState.villagerLevel) ? Number(serverState.villagerLevel) : 1,
+      tradeUses: serverState && Number(serverState.tradeUses) ? Number(serverState.tradeUses) : 0,
       serverControlled: !!serverState, serverId: serverState ? String(serverState.id) : null, serverTarget: serverState ? Object.assign({}, serverState) : null };
     if (serverState) {
       m.yaw = Number(serverState.yaw) || 0;
@@ -5011,6 +5289,34 @@ const Mobs = {
     const h = Math.ceil(def.h);
     for (let i = 0; i < h; i++) if (world.isSolid(x, y + i, z) || world.getDef(x, y + i, z).liquid) return false;
     return world.isSolid(x, y - 1, z);
+  },
+  canOccupy(m, x, y, z) {
+    const radius = Math.max(0.12, Number(m.w) || 0.3);
+    const minY = Math.floor(y + 0.08), maxY = Math.ceil(y + Math.max(0.35, m.h) - 0.05);
+    for (const ox of [-radius, 0, radius]) for (const oz of [-radius, 0, radius]) {
+      for (let iy = minY; iy <= maxY; iy++) {
+        const def = world.getDef(Math.floor(x + ox), iy, Math.floor(z + oz));
+        if (def && def.solid && !def.liquid) return false;
+      }
+    }
+    return true;
+  },
+  resolveServerPosition(m, target) {
+    const tx = Number(target.x), ty = Number(target.y), tz = Number(target.z);
+    if (![tx, ty, tz].every(Number.isFinite)) return [m.x, m.y, m.z];
+    const dx = tx - m.x, dz = tz - m.z;
+    const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) / 0.08));
+    let px = m.x, pz = m.z;
+    for (let i = 1; i <= steps; i++) {
+      const nx = m.x + dx * i / steps, nz = m.z + dz * i / steps;
+      if (!this.canOccupy(m, nx, ty, nz)) break;
+      px = nx; pz = nz;
+    }
+    if (px === m.x && pz === m.z) {
+      if (this.canOccupy(m, tx, ty, m.z)) px = tx;
+      else if (this.canOccupy(m, m.x, ty, tz)) pz = tz;
+    }
+    return [px, ty, pz];
   },
   spawnTick() {
     const p = player; if (!Game.running) return;
@@ -5161,9 +5467,12 @@ const Mobs = {
       if (m.serverControlled) {
         const target = m.serverTarget || m;
         const oldX = m.x, oldZ = m.z, interpolation = Math.min(1, dt * 10);
-        m.x += (Number(target.x) - m.x) * interpolation;
-        m.y += (Number(target.y) - m.y) * interpolation;
-        m.z += (Number(target.z) - m.z) * interpolation;
+        const desired = {
+          x: m.x + (Number(target.x) - m.x) * interpolation,
+          y: m.y + (Number(target.y) - m.y) * interpolation,
+          z: m.z + (Number(target.z) - m.z) * interpolation
+        };
+        [m.x, m.y, m.z] = this.resolveServerPosition(m, desired);
         m.vx = (m.x - oldX) / Math.max(dt, 0.001); m.vz = (m.z - oldZ) / Math.max(dt, 0.001);
         // Use movement direction for the visual orientation. The authoritative
         // yaw can jump while a mob is blocked or idle; applying those jumps to
@@ -5204,10 +5513,30 @@ const Mobs = {
         const maxTurn = Math.max(0.015, dt * 2.4);
         m.visualYaw += clamp(visualDelta, -maxTurn, maxTurn);
       }
-      // Animation
-      const hs = Math.hypot(m.vx, m.vz);
-      m.walkPhase += hs * dt * 4;
-      const swing = Math.sin(m.walkPhase) * Math.min(1, hs) * 0.7;
+      // Animation: use a smoothed locomotion signal instead of the raw
+      // per-frame velocity. Network snapshots and collision correction can
+      // alternate by a few pixels, which otherwise makes every limb tremble.
+      const physicalSpeed = Math.hypot(m.vx, m.vz);
+      const networkSpeed = m.serverControlled && m.serverTarget
+        ? Math.hypot(Number(m.serverTarget.vx) || 0, Number(m.serverTarget.vz) || 0)
+        : physicalSpeed;
+      const walkingState = !m.serverControlled || ['wander', 'chase', 'flee'].includes(m.state);
+      const desiredWalkSpeed = walkingState
+        ? clamp(Math.max(networkSpeed, physicalSpeed * (m.serverControlled ? 0.35 : 1)), 0, d.speed * 1.35)
+        : 0;
+      const speedSmoothing = 1 - Math.exp(-dt * 12);
+      m.walkSpeed += (desiredWalkSpeed - m.walkSpeed) * speedSmoothing;
+      const desiredWalkBlend = desiredWalkSpeed > 0.025
+        ? clamp(desiredWalkSpeed / Math.max(0.25, d.speed), 0, 1)
+        : 0;
+      m.walkBlend += (desiredWalkBlend - m.walkBlend) * (1 - Math.exp(-dt * 16));
+      if (m.walkBlend > 0.001) {
+        const normalizedSpeed = clamp(m.walkSpeed / Math.max(0.25, d.speed), 0, 1.35);
+        m.walkPhase += dt * (5 + normalizedSpeed * 6);
+      }
+      // Ease the amplitude as the mob starts/stops so the last step does not
+      // snap when a server snapshot changes from moving to idle.
+      const swing = Math.sin(m.walkPhase) * 0.55 * m.walkBlend * m.walkBlend;
       m.parts.legs.forEach((l, i) => {
         const base = l.userData.vanillaPart ? (l.userData.baseRotation || [0, 0, 0]) : [0, 0, 0];
         l.rotation.set(base[0] + swing * (i % 2 ? -1 : 1) * (i >= 2 ? -1 : 1), base[1], base[2]);
@@ -5401,6 +5730,9 @@ Events.on('blockChanged', (x, y, z, oldId, newId) => {
   }
   if (newId === B.wheat || oldId === B.wheat) { /* crops handled by random ticks */ }
   Redstone.onChange(x, y, z);
+  // The server owns persistence. Queue the changed chunk for the multiplayer
+  // authority instead of writing the world from this browser.
+  if (typeof Multiplayer !== 'undefined' && !Multiplayer.applyingWorld && Game.running && Game.ready) Multiplayer.queueWorldChunk(x >> 4, z >> 4);
 });
 
 /* ---- Random ticks ------------------------------------------------------------ */
@@ -5799,6 +6131,21 @@ const Chat = {
   receive(message) {
     this.addLine(message.nome || 'Jogador', message.text || '');
   },
+  receiveMobList(message) {
+    const names = Array.isArray(message.names) ? message.names.map((name) => String(name)) : [];
+    const box = $('chat-log');
+    const line = document.createElement('div');
+    line.className = 'chat-line mob-list';
+    const label = document.createElement('span');
+    label.className = 'chat-name';
+    label.textContent = `${String(message.nome || 'Servidor')}: `;
+    const title = document.createTextNode(`Criaturas disponíveis (${Number(message.total) || names.length})\n`);
+    const list = document.createTextNode(names.map((name, index) => `${String(index + 1).padStart(2, '0')}. ${name}`).join('\n'));
+    line.append(label, title, list);
+    box.appendChild(line);
+    while (box.children.length > 10) box.removeChild(box.firstChild);
+    setTimeout(() => { if (line.parentNode) line.parentNode.removeChild(line); }, 30000);
+  },
   addLine(name, text) {
     const box = $('chat-log');
     const line = document.createElement('div');
@@ -5957,25 +6304,14 @@ const Save = {
     return { version: WORLD_GENERATION_VERSION, seed: Game.seed || TEST_WORLD_SEED_PREFIX, time: Sky.time, day: Sky.day, mode: 'survival', raining: Weather.raining, chunks };
   },
   async save(silent) {
-    try {
-      const data = this.serialize();
-      const res = await fetch('login/api/mundo.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      AccountSync.save(true);
-      if (!silent) HUD.message(`Mapa salvo no servidor (${data.chunks.length} chunks modificados)`);
-      return true;
-    } catch (e) { HUD.message('Save failed: ' + e.message); return false; }
+    const sent = typeof Multiplayer !== 'undefined' && Multiplayer.saveWorld();
+    if (!sent && !silent) HUD.message('Servidor multiplayer ainda nao conectado.');
+    AccountSync.save(true);
+    return !!sent;
   },
   saveSync() {
-    try {
-      const data = JSON.stringify(this.serialize());
-      AccountSync.saveSync();
-      if (navigator.sendBeacon) navigator.sendBeacon('login/api/mundo.php', new Blob([data], { type: 'application/json' }));
-    } catch (e) { /* best effort on page unload */ }
+    try { if (typeof Multiplayer !== 'undefined') Multiplayer.saveWorld(); } catch (e) { /* best effort on page unload */ }
+    AccountSync.saveSync();
   },
   hasSave() { return false; },
   async loadData() {
@@ -6009,19 +6345,32 @@ const Save = {
 const PlayerSkins = {
   KEY: 'fp_craft_skin',
   list: [
-    { id: 'security', name: 'Steve', file: 'assets/security-guard-green.png', slim: true },
-    { id: 'pearson', name: 'Marcos', file: 'assets/swag-24334585.png', slim: true },
-    { id: 'sayori', name: 'Lia', file: 'assets/sayori-ddlc-eye-tweak-2.png', slim: false },
-    { id: 'clouds', name: 'Ana', file: 'assets/clouds-24335191.png', slim: false }
+    { id: 'security', name: 'Steve', group: 'male', file: 'assets/security-guard-green.png', slim: true },
+    { id: 'pearson', name: 'Marcos', group: 'male', file: 'assets/swag-24334585.png', slim: true },
+    { id: 'sayori', name: 'Lia', group: 'female', file: 'assets/sayori-ddlc-eye-tweak-2.png', slim: false },
+    { id: 'clouds', name: 'Ana', group: 'female', file: 'assets/clouds-24335191.png', slim: false },
+    { id: 'social', name: 'Social', group: 'male', file: 'https://www.minecraftskins.com/uploads/skins/2026/09/15/the-black-suit-24341097.png?v971', slim: false },
+    { id: 'summer-contest-results', name: 'Summer', group: 'female', file: 'https://www.minecraftskins.com/uploads/skins/2026/09/17/summer-contest-results--24344214.png?v971', slim: false },
+    { id: 'maple-grove', name: 'Maple', group: 'female', file: 'https://www.minecraftskins.com/uploads/skins/2026/09/16/--maple-grove---24342504.png?v971', slim: false },
+    { id: 'wind-goddess', name: 'Wind Goddess', group: 'female', file: 'https://www.minecraftskins.com/uploads/skins/2026/09/16/the-wind-goddess-24342933.png?v971', slim: false },
+    { id: 'sweet-baby', name: 'Sweet Baby', group: 'female', file: 'https://www.minecraftskins.com/uploads/skins/2026/09/17/-----sweet-baby-24344243.png?v971', slim: false },
+    { id: 'faker-six-gold-stars', name: 'Faker', group: 'male', file: 'https://www.minecraftskins.com/uploads/skins/2026/09/17/faker---six-gold-stars---3d-24344271.png?v971', slim: false },
+    { id: 'blue-gamer-2', name: 'Blue Gamer', group: 'male', file: 'https://www.minecraftskins.com/uploads/skins/2026/09/13/blue-gamer-2-24336177.png?v971', slim: false },
+    { id: 'pumpkin-spice', name: 'Pumpkin', group: 'female', file: 'https://www.minecraftskins.com/uploads/skins/2026/09/16/-*-*pumpkin-spice*-*--24342739.png?v971', slim: false },
+    { id: 'guilherme', name: 'Guilherme', group: 'male', file: 'assets/guilherme-chifre.png', slim: false },
+    { id: 'night-shades', name: 'Night Shades', group: 'male', file: 'https://www.minecraftskins.com/uploads/skins/2026/09/12/night-shades-24333237.png?v971', slim: false }
   ],
-  selected: 'security', saved: false,
+  selected: 'security', pending: null, editing: false, saved: false, startPickerDismissed: false, group: 'male', page: 0, visibleCount: 4,
   storageKey() {
     const account = window.MINEZERA_PLAYER && (window.MINEZERA_PLAYER.conta_id || window.MINEZERA_PLAYER.personagem_id);
     return `${this.KEY}:${account || 'guest'}`;
   },
   current() { return this.list.find(s => s.id === this.selected) || this.list[0]; },
+  filteredList() { return this.list.filter(s => s.group === this.group); },
+  pendingSkin() { return this.list.find(s => s.id === this.pending) || this.current(); },
   load() {
     this.saved = false;
+    this.startPickerDismissed = false;
     try {
       const accountKey = this.storageKey();
       const serverSkin = window.MINEZERA_PLAYER && window.MINEZERA_PLAYER.skin;
@@ -6032,14 +6381,27 @@ const PlayerSkins = {
       // over the migration's default Steve once, then AccountSync stores it.
       const saved = validServerSkin && validServerSkin !== 'security' ? validServerSkin : validLocalSkin || validServerSkin;
       if (saved && !localStorage.getItem(accountKey)) localStorage.setItem(accountKey, saved);
-      if (this.list.some(s => s.id === saved)) { this.selected = saved; this.saved = true; }
+      if (this.list.some(s => s.id === saved)) { this.selected = saved; this.saved = true; this.startPickerDismissed = true; this.group = this.current().group; this.page = this.filteredList().findIndex(s => s.id === saved); }
     } catch (e) { /* localStorage unavailable */ }
     return this.saved;
   },
   select(id) {
     if (!this.list.some(s => s.id === id)) return;
+    if (this.editing) {
+      this.pending = id;
+      this.page = this.filteredList().findIndex(s => s.id === id);
+      this.render('skin-settings-picker');
+      this.updateSavedUi();
+      return;
+    }
+    this.commit(id);
+  },
+  commit(id) {
+    if (!this.list.some(s => s.id === id)) return;
     this.selected = id;
+    this.group = this.current().group;
     this.saved = true;
+    if (typeof Game === 'undefined' || !Game.running) this.startPickerDismissed = false;
     if (window.MINEZERA_PLAYER) window.MINEZERA_PLAYER.skin = id;
     try { localStorage.setItem(this.storageKey(), id); } catch (e) { /* localStorage unavailable */ }
     this.renderAll();
@@ -6047,6 +6409,32 @@ const PlayerSkins = {
     if (typeof PlayerView !== 'undefined') PlayerView.setSkin(this.current().file);
     if (typeof Multiplayer !== 'undefined') Multiplayer.sendState();
     if (typeof AccountSync !== 'undefined') AccountSync.save(true);
+  },
+  beginEdit() {
+    this.editing = true;
+    this.pending = this.selected;
+    this.group = this.pendingSkin().group;
+    this.page = this.filteredList().findIndex(s => s.id === this.pending);
+    this.render('skin-settings-picker');
+    this.updateSavedUi();
+  },
+  cancelEdit() {
+    this.editing = false;
+    this.pending = null;
+    this.render('skin-settings-picker');
+    this.updateSavedUi();
+  },
+  confirmEdit() {
+    const next = this.pending || this.selected;
+    this.editing = false;
+    this.pending = null;
+    this.commit(next);
+  },
+  setGroup(group) {
+    if (group !== 'male' && group !== 'female') return;
+    this.group = group;
+    this.page = 0;
+    this.renderAll();
   },
   drawPreview(canvas, skin) {
     const img = new Image();
@@ -6068,9 +6456,47 @@ const PlayerSkins = {
   render(targetId = 'skin-picker') {
     const wrap = $(targetId);
     if (!wrap) return;
-    wrap.innerHTML = this.list.map(s => `<button class="skin-option${s.id === this.selected ? ' selected' : ''}" data-skin="${s.id}" type="button"><canvas width="48" height="72" aria-hidden="true"></canvas><span>${s.name}</span></button>`).join('');
+    const available = this.filteredList();
+    const count = available.length;
+    if (!count) { wrap.textContent = 'Nenhuma skin disponível'; return; }
+    this.page = ((this.page % count) + count) % count;
+    const activeId = targetId === 'skin-settings-picker' && this.editing ? this.pending : this.selected;
+    const visible = Array.from({ length: Math.min(this.visibleCount, count) }, (_, i) => available[(this.page + i) % count]);
+    const categoryMenu = `<div class="skin-category-menu"><button class="skin-category${this.group === 'male' ? ' active' : ''}" data-skin-group="male" type="button">Masculinas</button><button class="skin-category${this.group === 'female' ? ' active' : ''}" data-skin-group="female" type="button">Femininas</button></div>`;
+    wrap.innerHTML = `${categoryMenu}<div class="skin-carousel"><button class="skin-nav" data-skin-nav="prev" type="button" aria-label="Skins anteriores" ${count <= this.visibleCount ? 'disabled' : ''}>‹</button><div class="skin-track">${visible.map(s => `<button class="skin-option${s.id === activeId ? ' selected' : ''}" data-skin="${s.id}" type="button"><canvas width="48" height="72" aria-hidden="true"></canvas><span>${s.name}</span></button>`).join('')}</div><button class="skin-nav" data-skin-nav="next" type="button" aria-label="Próximas skins" ${count <= this.visibleCount ? 'disabled' : ''}>›</button></div><div class="skin-page">Página ${this.page + 1} de ${count}</div>`;
     wrap.querySelectorAll('[data-skin]').forEach(b => this.drawPreview(b.querySelector('canvas'), this.list.find(s => s.id === b.dataset.skin)));
-    wrap.querySelectorAll('[data-skin]').forEach(b => b.addEventListener('click', () => this.select(b.dataset.skin)));
+    wrap.querySelectorAll('[data-skin]').forEach(b => {
+      // Select on pointerdown so a card click cannot be confused with a
+      // carousel navigation click. The following click is ignored because
+      // browsers synthesize it after pointerdown/pointerup.
+      b.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        b.dataset.skinPointerHandled = '1';
+        this.select(b.dataset.skin);
+      }, { passive: false });
+      b.addEventListener('pointerup', (e) => {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }, { passive: false });
+      b.addEventListener('pointercancel', (e) => {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        delete b.dataset.skinPointerHandled;
+      }, { passive: false });
+      b.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (b.dataset.skinPointerHandled === '1') {
+          delete b.dataset.skinPointerHandled;
+          return;
+        }
+        this.select(b.dataset.skin);
+      });
+    });
+    wrap.querySelectorAll('[data-skin-group]').forEach(b => b.addEventListener('click', () => this.setGroup(b.dataset.skinGroup)));
+    wrap.querySelector('[data-skin-nav="prev"]')?.addEventListener('click', () => { this.page = (this.page - 1 + count) % count; this.render(targetId); });
+    wrap.querySelector('[data-skin-nav="next"]')?.addEventListener('click', () => { this.page = (this.page + 1) % count; this.render(targetId); });
   },
   renderAll() {
     this.render('skin-picker');
@@ -6078,9 +6504,9 @@ const PlayerSkins = {
   },
   updateSavedUi() {
     const picker = $('skin-picker'), note = $('skin-saved-note'), current = $('skin-settings-current');
-    if (picker) picker.classList.toggle('hidden', this.saved);
+    if (picker) picker.classList.toggle('hidden', this.saved && this.startPickerDismissed);
     if (note) { note.textContent = this.saved ? `Skin salva: ${this.current().name}. Use Configurações > Trocar skin para alterar.` : ''; note.classList.toggle('hidden', !this.saved); }
-    if (current) current.textContent = `Skin atual: ${this.current().name}`;
+    if (current) current.textContent = this.editing ? `Skin selecionada: ${this.pendingSkin().name}` : `Skin atual: ${this.current().name}`;
   }
 };
 const MobileDisplay = {
@@ -6186,10 +6612,15 @@ const Menus = {
     $('btn-skin-settings').addEventListener('click', () => {
       $('pause').classList.add('hidden');
       $('skin-settings').classList.remove('hidden');
-      PlayerSkins.render('skin-settings-picker');
-      PlayerSkins.updateSavedUi();
+      PlayerSkins.beginEdit();
     });
     $('btn-skin-settings-close').addEventListener('click', () => {
+      PlayerSkins.cancelEdit();
+      $('skin-settings').classList.add('hidden');
+      if (Game.running) $('pause').classList.remove('hidden');
+    });
+    $('btn-skin-settings-ok').addEventListener('click', () => {
+      PlayerSkins.confirmEdit();
       $('skin-settings').classList.add('hidden');
       if (Game.running) $('pause').classList.remove('hidden');
     });
@@ -6447,7 +6878,7 @@ const PlayerView = {
 };
 
 const Multiplayer = {
-  ws: null, scene: null, id: null, peers: new Map(), sendTimer: 0, reconnectTimer: 0, reconnectDelay: 2, mobAuthorityReady: false, nearbyMobCount: 0, serverMobCount: 0,
+  ws: null, scene: null, id: null, peers: new Map(), sendTimer: 0, worldSendTimer: 0, worldDirty: new Set(), applyingWorld: false, reconnectTimer: 0, reconnectDelay: 2, mobAuthorityReady: false, nearbyMobCount: 0, serverMobCount: 0,
   init(scene) {
     this.scene = scene;
     if (window.MINEZERA_PLAYER) this.connect();
@@ -6491,6 +6922,8 @@ const Multiplayer = {
       this.removePeer(msg.id);
     } else if (msg.type === 'chat') {
       Chat.receive(msg);
+    } else if (msg.type === 'mob_list') {
+      Chat.receiveMobList(msg);
     } else if (msg.type === 'admin_command') {
       AdminCommands.execute(msg);
     } else if (msg.type === 'pvp_damage') {
@@ -6523,7 +6956,36 @@ const Multiplayer = {
       if (m) Entities.spawnItem(m.x, m.y + 0.6, m.z, { name: (msg.color || 'white') + '_wool', count: Math.max(1, Number(msg.count) || 1) });
       Inventory.damageHeldTool();
       if (m && typeof SoundFX !== 'undefined') SoundFX.playAt('mob_sheep_shear', m.x, m.y + 0.7, m.z);
+    } else if (msg.type === 'world_chunk' && msg.chunk) {
+      this.applyingWorld = true;
+      try { world.applySerializedChunk(msg.chunk); } finally { this.applyingWorld = false; }
     }
+  },
+  queueWorldChunk(cx, cz) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.applyingWorld) return;
+    this.worldDirty.add(`${cx | 0},${cz | 0}`);
+  },
+  queueAllModifiedChunks() {
+    for (const c of world.chunks.values()) if (c.modified) this.queueWorldChunk(c.cx, c.cz);
+    for (const c of world.stored.values()) if (c.modified) this.queueWorldChunk(c.cx, c.cz);
+  },
+  flushWorldChunks(force = false) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
+    if (force) this.queueAllModifiedChunks();
+    for (const key of this.worldDirty) {
+      const [cx, cz] = key.split(',').map(Number);
+      const chunk = world.chunks.get(chunkKey(cx, cz)) || world.stored.get(chunkKey(cx, cz));
+      if (!chunk || !chunk.modified) { this.worldDirty.delete(key); continue; }
+      this.ws.send(JSON.stringify({ type: 'world_chunk', chunk: world.serializeChunk(chunk) }));
+      this.worldDirty.delete(key);
+    }
+    return true;
+  },
+  saveWorld() {
+    this.queueAllModifiedChunks();
+    const sent = this.flushWorldChunks(true);
+    if (sent) HUD.message('Alteracoes do mapa enviadas ao servidor.');
+    return sent;
   },
   makeNameTexture(name) {
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = 48;
@@ -6690,6 +7152,11 @@ const Multiplayer = {
     this.ws.send(JSON.stringify({ type: 'mob_action', mobId: mob.serverId, action }));
     return true;
   },
+  constructStructure(structure, x, y, z) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify({ type: 'structure_construct', structure, x, y, z }));
+    return true;
+  },
   sendChat(text) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
     this.ws.send(JSON.stringify({ type: 'chat', text }));
@@ -6723,6 +7190,11 @@ const Multiplayer = {
       this.sendTimer = 0;
       this.sendState();
     }
+    this.worldSendTimer += dt;
+    if (this.worldSendTimer >= 0.5) {
+      this.worldSendTimer = 0;
+      this.flushWorldChunks();
+    }
     const now = performance.now();
     for (const peer of this.peers.values()) {
       if (!peer.target) continue;
@@ -6745,6 +7217,56 @@ const Multiplayer = {
       parts.rightLeg.rotation.x = swing;
       peer.state = Object.assign({}, s);
     }
+  }
+};
+
+// Vanilla-style multiblock creature construction. The client owns the local
+// block world, while the resulting mob is requested from the Node authority so
+// every connected player sees the same golem or Wither.
+const Structures = {
+  directions: [[1, 0], [0, 1]],
+  blockAt(x, y, z) { return world.getBlock(x, y, z); },
+  matches(blocks) { return blocks.every(([x, y, z, id]) => this.blockAt(x, y, z) === id); },
+  activate(type, blocks, x, y, z) {
+    for (const [bx, by, bz] of blocks) world.setBlock(bx, by, bz, AIR, 0, SET_NO_NOTIFY);
+    for (const [bx, by, bz] of blocks) Particles.blockBreak(bx, by, bz, Blocks.byId[type === 'wither' ? B.soul_sand : B.iron_block], 4);
+    const label = type === 'wither' ? 'Wither' : 'Golem de ferro';
+    HUD.message(`${label} criado pela estrutura.`);
+    if (!Multiplayer.constructStructure(type, x + 0.5, y, z + 0.5)) Mobs.spawnMob(type, x + 0.5, y, z + 0.5);
+  },
+  checkAround(x, y, z) {
+    const candidates = [];
+    for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) for (let oy = -2; oy <= 0; oy++) candidates.push([x + ox, y + oy, z + oz]);
+    for (const [bx, by, bz] of candidates) {
+      for (const [dx, dz] of this.directions) {
+        const golem = [
+          [bx, by, bz, B.iron_block],
+          [bx, by + 1, bz, B.iron_block],
+          [bx - dx, by + 1, bz - dz, B.iron_block],
+          [bx + dx, by + 1, bz + dz, B.iron_block],
+          [bx, by + 2, bz, B.pumpkin]
+        ];
+        const golemLantern = golem.slice(); golemLantern[4] = [bx, by + 2, bz, B.jack_o_lantern];
+        if (this.matches(golem) || this.matches(golemLantern)) {
+          this.activate('iron_golem', golem.slice(0, 4).concat([[bx, by + 2, bz]]), bx, by, bz);
+          return true;
+        }
+        const wither = [
+          [bx, by, bz, B.soul_sand],
+          [bx, by + 1, bz, B.soul_sand],
+          [bx - dx, by + 1, bz - dz, B.soul_sand],
+          [bx + dx, by + 1, bz + dz, B.soul_sand],
+          [bx - dx, by + 2, bz - dz, B.wither_skeleton_skull],
+          [bx, by + 2, bz, B.wither_skeleton_skull],
+          [bx + dx, by + 2, bz + dz, B.wither_skeleton_skull]
+        ];
+        if (this.matches(wither)) {
+          this.activate('wither', wither, bx, by, bz);
+          return true;
+        }
+      }
+    }
+    return false;
   }
 };
 
@@ -6934,13 +7456,16 @@ const Game = {
         Interaction.update(dt);
         Entities.update(dt);
         Mobs.update(dt);
-        Multiplayer.update(dt);
         Particles.update(dt);
         Weather.update(dt);
         AccountSync.tick(dt);
         this.autosave += dt;
         if (this.autosave > 60) { this.autosave = 0; Save.save(true); }
       }
+      // Keep broadcasting the player's last position while the pause menu is
+      // open. Other clients use the presence heartbeat to keep the player
+      // visible; pausing local simulation must not look like disconnecting.
+      Multiplayer.update(dt);
       // Camera
       const p = player;
       PlayerView.update(dt);
@@ -6977,7 +7502,8 @@ window.addEventListener('pagehide', () => { if (Game.running && Game.ready) Acco
    // STUB: Dedicated armour equipment slots and visible armour layers.
    ========================================================================== */
 </script>
-<script src="assets/mob-sounds-26.2.js?v=26.2.15"></script>
-<script src="assets/expansion-26.2.js?v=26.2.15"></script>
+<script src="assets/mob-sounds-26.2.js?v=26.2.16"></script>
+<script src="assets/expansion-26.2.js?v=26.2.16"></script>
+<script src="assets/naturalist-mobs.js?v=2.0.3"></script>
 </body>
 </html>
